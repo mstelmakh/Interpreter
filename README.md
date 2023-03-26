@@ -15,7 +15,7 @@ There will be only a few data types:
 - **Booleans.** There are two boolean values: `True` and `False`.
 - **Numbers.** The language will have only two kinds of numbers: `int` and `float`.
 - **Strings.** The strings are enclosed in double quotes. Escape character (`\`) allows to insert special characters in strings.
-- **Nil.** The `nil` is a term used to represent the absence of a value.
+- **Nil.** Represents the absence of a value.
 
 ### Expressions
 
@@ -29,7 +29,7 @@ There are four operators:
 | Miltiplication |   *  |  Infix        |
 | Division       |   /  |  Infix        |
 
-All of these operators can work on numbers. Addition can be also used on strings to concatenate them.
+All of these operators can work on numbers. Addition can also be used on strings to concatenate them.
 
 Because of the fact, that the language is weakly typed, addition can be also performed on different operand types. Some examples:
 ```JavaScript
@@ -94,7 +94,7 @@ To pack a series of statements, the **block** (`{}`) syntax is used.
 
 ### Variables
 
-The keyword `var` is used to declare a variable. The variable without a values defaults to `nil`.
+The keyword `var` is used to declare a variable. The variable without a value defaults to `nil`.
 ```JavaScript
 var a = "string";
 var b;  // nil
@@ -109,8 +109,8 @@ Because of the dynamic typing, the data types of variables are determined at run
 
 For example:
 ```JavaScript
-var name = "John";
-name = "Jane";
+var variable = "John";
+variable = 10;
 ```
 
 ### Comments
@@ -166,6 +166,8 @@ fn getSum(a, b) {
 }
 ```
 
+Where `fn` is the keyword to declare a function.
+
 If the function doesn't have a `return` statement, it returns `nil`.
 
 To call a function use the following syntax:
@@ -193,11 +195,11 @@ Example:
 fn getSum(a, b) {
     var outside = a + b;
 
-    fun inner() {
+    fn inner() {
         return outside + 1
     }
 
-    return inner;
+    return inner();
 }
 
 fn wrapper(a) {
