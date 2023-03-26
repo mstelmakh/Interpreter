@@ -32,7 +32,7 @@ There are four operators:
 All of these operators can work on numbers. Addition can also be used on strings to concatenate them.
 
 Because of the fact, that the language is weakly typed, some operations can be also performed on different operand types by coercing them to common type supported by the operator. Some examples:
-```JavaScript
+```javascript
 // On Booleans
 true + true                 = 2     // true is coerced to 1
 false + false               = 0     // false if coerced to 0
@@ -100,12 +100,12 @@ To pack a series of statements, the **block** (`{}`) syntax is used.
 ### Variables
 
 The keyword `var` is used to declare a variable. The variable without a value defaults to `nil`.
-```JavaScript
+```javascript
 var a = "string";
 var b;  // nil
 ```
 Because the variables are mutable by default, their value can be changed. To declare a constant variable, that can not be modified, use the keyword `const`.
-```JavaScript
+```javascript
 const a = 5;
 a = 6           // Throws an error
 ```
@@ -113,7 +113,7 @@ a = 6           // Throws an error
 Because of the dynamic typing, the data types of variables are determined at runtime, rather than at compile time. It means that there is no need to specify the data type of a variable explicitly when declaring it, and its data type can be changed by assigning a value of a different type to it.
 
 For example:
-```JavaScript
+```javascript
 var variable = "John";
 variable = 10;
 ```
@@ -122,7 +122,7 @@ variable = 10;
 
 Comment starts with a double-slash (`//`) symbol and ends with the new line.
 
-```JavaScript
+```javascript
 // Limit the number
 if (number > maxNumber) {
     number = maxNumber;     // If greater than the high limit, set to max value
@@ -137,7 +137,7 @@ if (number < minNumber>) {
 There are three ways of controlling the flow of the program:
 
 **if** - executes the block of statements based on the condition.
-```JavaScript
+```javascript
 var a;
 if (someCondition) {
     a = true;
@@ -147,7 +147,7 @@ if (someCondition) {
 ```
 
 **while** - executes the block of statements while the condition evaluates to `true`.
-```JavaScript
+```javascript
 var a = 0;
 
 while (a < 10) {
@@ -156,7 +156,7 @@ while (a < 10) {
 ```
 
 **for** - it is a C-style loop, that gets three arguments: initialization, condition and the statement executed at the end of each iteration.
-```JavaScript
+```javascript
 for (var a = 1; a < 10; a = a + 1) {
     // Code here
 }
@@ -176,7 +176,7 @@ Where `fn` is the keyword to declare a function.
 If the function doesn't have a `return` statement, it returns `nil`.
 
 To call a function use the following syntax:
-```JavaScript
+```javascript
 someFunction(5, 5);
 
 // Or without arguments
@@ -184,7 +184,7 @@ someFunction();
 ```
 <!-- TODO -->
 <!-- By default arguments are passed by their values, so the original object can not be modified inside the function. To pass the argument as a reference to the object, use the symbol `$` before the agument.
-```JavaScript
+```javascript
 fn incrementNumber($a) {
     a = a + 1;
 }
@@ -232,6 +232,7 @@ var division = b / a; // 1.44
 var difference = b - a; // 2.2
 var stringConcat = "The result is: " + product; // "The result is: 36"
 var mixedAddition = a + c; // "53" (because c is a string, it is concatenated to a as a string)
+var groupedExpression = 21 / (5 + 2) / (2 + 1); // 1
 ```
 
 ### Strings
@@ -331,8 +332,37 @@ wrapper(getSum)(5, 3)   // returns 9
 
 ## Error handling
 
+If the error was found while scanning the source - the lexer reports an error, but it doesn't stop, it keeps scanning.
+
+If the error was found while parsing - the parser reports an error and uses a technique called *error recovery* to try and continue parsing the code.
+
+The error message structure looks like this:
+```
+<Error Type>: <Error message>
+
+    <line number> | <place where error occured>
+```
+
+For example:
+```
+ZeroDivisionError: division by zero
+
+    15 | var number = 15 / 0;
+```
+
 ## How to run
 
-## Expected implementation
+To run the interpreter use following syntax:
+```sh
+python3 interpreter.py [filepath]
+```
+
+Where `interpreter.py` is a path to the interpreter and `filepath` is a path to the file with the source code.
+
+If `filepath` is not given, the interpreter will be run interactively.
+
+## Implementation
+
+### Modules
 
 ## Testing
