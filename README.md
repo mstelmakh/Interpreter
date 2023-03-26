@@ -31,17 +31,22 @@ There are four operators:
 
 All of these operators can work on numbers. Addition can also be used on strings to concatenate them.
 
-Because of the fact, that the language is weakly typed, addition can be also performed on different operand types. Some examples:
+Because of the fact, that the language is weakly typed, some operations can be also performed on different operand types by coercing them to common type supported by the operator. Some examples:
 ```JavaScript
 // On Booleans
-true + true                 = 2
-false + false               = 0
+true + true                 = 2     // true is coerced to 1
+false + false               = 0     // false if coerced to 0
 true + false = false + true = 1
 
 // On Numbers
 4 + 6                       = 10
 "5" + 3                     = "53"
-7 + "2"                     = 9
+7 + "2"                     = "72"
+
+// Operator "-" is used only for numerical substraction
+7 - "2" = "7" - 2           = 5     // string is coerced to number
+10 - ""                     = 10    // empty string is coerced to 0
+10 - "foo"                          // error
 
 // On Strings
 "hello" + "world"           = "helloworld"
@@ -209,9 +214,115 @@ fn wrapper(a) {
 wrapper(getSum)(5, 3)   // returns 9
 ```
 
-### Classes
-
 ## Code examples
+### Hello world
+```javascript
+print("hello world");
+```
+### Arithmetic
+
+```javascript
+var a = 5;
+var b = 7.2;
+var c = "3";
+
+var sum = a + b; // 12.2
+var product = a * b; // 36
+var division = b / a; // 1.44
+var difference = b - a; // 2.2
+var stringConcat = "The result is: " + product; // "The result is: 36"
+var mixedAddition = a + c; // "53" (because c is a string, it is concatenated to a as a string)
+```
+
+### Strings
+
+```javascript
+var firstName = "John";
+var lastName = "Doe";
+var fullName = firstName + " " + lastName; // "John Doe"
+```
+
+### Comparisons
+
+```javascript
+var a = 5;
+var b = 10;
+var c = "5";
+
+var isEqual = a == c; // true (c is coerced to a number before comparison)
+var isNotEqual = a != b; // true
+var isLessThan = a < b; // true
+var isGreaterThan = b > c; // true (c is coerced to a number before comparison)
+var isLessThanOrEqual = a <= 5; // true
+var isGreaterThanOrEqual = b >= 10; // true
+var andResult = (a == 5) and (b == 10); // true
+var orResult = (a == 5) or (b == 5); // true
+var notResult = !(a == b); // true
+```
+
+### Conditional statement
+
+```javascript
+var a = 5;
+var b = 7;
+
+if (a > b) {
+  print("a is greater than b");
+} else {
+  print("a is not greater than b");
+}
+
+if (a == b) print("a is equal to b");
+
+```
+### Loops
+```javascript
+var i = 0;
+while (i < 5) {
+  print("The value of i is " + i);
+  i = i + 1;
+}
+
+for (var j = 0; j < 5; j++) {
+  print("The value of j is " + j);
+}
+```
+### Functions
+
+```javascript
+fn add(a, b) {
+  return a + b;
+}
+
+fn fib(n) {
+    if (n <= 1) return n;
+    return fib(n - 2) + fib(n - 1);
+}
+
+fn getSum(a, b) {
+    var outside = a + b;
+
+    fn inner() {
+        return outside + 1
+    }
+
+    return inner();
+}
+
+fn wrapper(a) {
+    return a;
+}
+
+
+var result = add(5, 10); // 15
+print(result);
+
+for (var i = 0; i < 20; i = i + 1) {
+    print(fib(i));
+}
+
+wrapper(getSum)(5, 3)   // returns 9
+```
 
 ## Grammar
 
