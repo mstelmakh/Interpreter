@@ -70,8 +70,6 @@ There are three logical operators used:
 - **and** - determines if two values are both `true`. It doesn't evaluate the right operand if the left one is `false`.
 - **or** - determines if either of two values (or both) are `true`. It doesn't evaluate the right operand if the left one is `true`.
 
-See [examples](#comparison-1).
-
 #### Grouping
 
 To change the order of precedence in arithmetic expressions, the parentheses `()` can be used to group sub-expressions. The expressions inside parentheses are evaluated first before the rest of the expression, regardless of the usual operator precedence.
@@ -422,18 +420,97 @@ If `filepath` is not given, the interpreter will be run interactively.
 
 ## Implementation
 
+As it's a *tree-walk interpreter*, it has three main parts: **Lexer**, **Parser**, **Interpreter**. For convenience, an interpreter is divided into two more modules: **error handling** and **input reader**. This will make interpreter more flexible and will allow to change the interpreter behavior simply by replacing one of the modules.
+
 #### Error handling
 
-#### Streams
+This module is responsible for handling an errors on different stages of interpreting.
+
+The representation of this module is a class that implements the interface:
+
+```python
+class ErrorHandler:
+    def handle_lexer_error(self, exception: LexerError):
+        ...
+
+    def handle_parser_error(self, exception: ParserError):
+        ...
+
+    def handle_interpreter_error(self, exception: InterpreterError):
+        ...
+```
+
+Each type of error should implement this interface:
+```python
+class Position:
+    line: int
+    column: int
+    offset: int
+
+class Exception:
+    position: Position
+    message: str
+```
+
+These fields are required to build a user-friendly error message.
+
+#### Input reader
+
+This module is responsible for reading an input and provide lexer with the stream of characters.
+
+An input reader should implement this interface:
+```python
+class InputReader:
+    position: Position
+
+    def advance(self) -> str:
+        ...
+```
+
+`advance()` method is responsible for moving forward in source by one character. It also keeps track of the current position in the source, so that it can be passed to the token or error handler.
 
 #### Lexer
 
+A **lexer** (or **scanner**) takes a stream of characters and groups it into **tokens**. Because there is an additional layer for reading source, lexer doesn't interact with the source, it uses an input reader it got during initialization to move in the code.
+
+The interface of the scanner is the following:
+```python
+class Scanner:
+    input_reader: InputReader
+    error_handler: ErrorHandler
+
+    def next_token(self) -> Token:
+        ...
+```
+
+A `Token` is a class that represents a token built from the characters. Its interface is the following:
+```python
+class Token:
+    type: TokenType
+    value: int | float | str | None
+    position: Position
+```
+
+If it represents a **literal** (identifier, string or number), than it has a value. Otherwise, if it represents a **keyword** or other **operator** - it's value is `None`.
+
 #### Parser
 
-Example tree:
-```
+A parser takes the flat sequence of **tokens** and builds a **tree** structure using **recursive descent** method. It also defines a type an a precedence of the node based on the grammar rules.
+
+```python
+class Parser:
+    scanner: Scanner
+
+    def parse(self) -> Statement:
+        ...
 ```
 
+Where `Statement` is base class for language's statements defined in the [grammar](./grammar.ebnf) file. A `Statement` might also contain an `Expression` object.
+
+To handle errors, parser uses `error_handler` object that is present in the `scanner` instance.
+
 #### Interpreter
+
+Interpreter's job is to apply static analysis to the **AST** and execute the code. To run the program, the interpreter traverses the syntax tree one branch and leaf at a time, evaluating each node as it goes.
 
 ## Testing
