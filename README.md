@@ -134,7 +134,7 @@ if (number < minNumber>) {
 
 ### Control flow
 
-There are three ways of controlling the flow of the program:
+There are two ways of controlling the flow of the program:
 
 **if** - executes the block of statements based on the condition.
 ```javascript
@@ -152,13 +152,6 @@ var a = 0;
 
 while (a < 10) {
     a = a + 1;
-}
-```
-
-**for** - it is a C-style loop, that gets three arguments: initialization, condition and the statement executed at the end of each iteration.
-```javascript
-for (var a = 1; a < 10; a = a + 1) {
-    // Code here
 }
 ```
 
@@ -182,17 +175,6 @@ someFunction(5, 5);
 // Or without arguments
 someFunction();
 ```
-<!-- TODO -->
-<!-- By default arguments are passed by their values, so the original object can not be modified inside the function. To pass the argument as a reference to the object, use the symbol `$` before the agument.
-```javascript
-fn incrementNumber($a) {
-    a = a + 1;
-}
-
-var a = 2;
-
-incrementNumber($a);      // a = 3
-``` -->
 
 Function can be passed to another function, as well as it can be declared in another function.
 Example:
@@ -283,10 +265,6 @@ while (i < 5) {
   print("The value of i is " + i);
   i = i + 1;
 }
-
-for (var j = 0; j < 5; j++) {
-  print("The value of j is " + j);
-}
 ```
 ### Functions
 
@@ -318,7 +296,8 @@ fn wrapper(a) {
 var result = add(5, 10); // 15
 print(result);
 
-for (var i = 0; i < 20; i = i + 1) {
+var i = 0;
+while (i < 20) {
     print(fib(i));
 }
 
@@ -327,8 +306,7 @@ wrapper(getSum)(5, 3)   // returns 9
 
 ## Grammar
 
-```ebnf
-```
+The grammar is in [this](./grammar.ebnf) file.
 
 ## Error handling
 
