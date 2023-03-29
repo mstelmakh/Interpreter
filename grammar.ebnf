@@ -28,7 +28,8 @@ term                    = factor {("-" | "+") factor} ;
 factor                  = unary {("/" | "*") unary} ;
 unary                   = ("!" | "-") unary
                         | call
-                        | LITERAL ;
+                        | LITERAL
+                        | "(" expression ")" ;
 call                    = IDENTIFIER {"(" [arguments] ")"} ;
 
 (* Helpers for expressions *)
