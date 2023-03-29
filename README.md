@@ -13,7 +13,7 @@ Main specifications of the language:
 ### Data types
 There will be only a few data types:
 - **Booleans.** There are two boolean values: `True` and `False`.
-- **Numbers.** The language will have only two kinds of numbers: `int` and `float`.
+- **Numbers.** The language has two kind of numbers: `int` and `float`.
 - **Strings.** The strings are enclosed in double quotes. Escape character (`\`) allows to insert special characters in strings.
 - **Nil.** Represents the absence of a value.
 
@@ -505,7 +505,7 @@ class Parser:
         ...
 ```
 
-Where `Statement` is base class for language's statements defined in the [grammar](./grammar.ebnf) file. A `Statement` might also contain an `Expression` object.
+Where `Statement` is a base class for language's statements defined in the [grammar](./grammar.ebnf) file. A `Statement` might also contain an `Expression` object.
 
 To handle errors, parser uses `error_handler` object that is present in the `scanner` instance.
 
