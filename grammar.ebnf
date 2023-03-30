@@ -2,7 +2,7 @@
 program                 = {declaration | statement}, EOF ;
 declaration             = function_declaration
                         | variable_declaration ;
-function_declaration    = "fn" function ;
+function_declaration    = "fn" IDENTIFIER "(" [parameters] ")" block ;
 variable_declaration    = "var" IDENTIFIER ["=" assignment] ";" ;
 assignment              = IDENTIFIER "=" assignment
                         | expression ;
@@ -33,8 +33,7 @@ unary                   = ("!" | "-") unary
 call                    = IDENTIFIER {"(" [arguments] ")"} ;
 
 (* Helpers for expressions *)
-function                = IDENTIFIER "(" [parameters] ")" block ;
-parameters              = IDENTIFIER {"," IDENTIFIER} ;
+parameters              = ["const"] IDENTIFIER {"," ["const"] IDENTIFIER} ;
 arguments               = expression {"," expression} ;
 
 (* Literals *)

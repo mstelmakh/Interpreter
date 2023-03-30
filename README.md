@@ -118,12 +118,12 @@ The scope of the variables described [here](#variable-scopes).
 
 The function declaration looks like this:
 ```Rust
-fn getSum(a, b) {
+fn getSum(a, const b) {
     return a + b;
 }
 ```
 
-Where `fn` is the keyword to declare a function.
+Where `fn` is the keyword to declare a function and `const` - to declare that the parameter is constant in this function.
 
 The code after the `return` statement is not executed. If the function doesn't have a `return` statement, it returns `nil`.
 
@@ -294,7 +294,9 @@ while (a < 20) {
 #### Declaration
 
 ```Rust
-fn getSum(a, b) {
+fn getSum(a, const b) {
+    a = a + 1;
+    b = b + 1;                  // Error
     return a + b;
 }
 ```
