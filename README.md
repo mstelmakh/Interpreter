@@ -88,8 +88,6 @@ Because the variables are mutable by default, their value can be changed. To dec
 
 Because of the dynamic typing, the data types of variables are determined at runtime, rather than at compile time. It means that there is no need to specify the data type of a variable explicitly when declaring it, and its data type can be changed by assigning a value of a different type to it.
 
-Variable can be redefined.
-
 See [examples](#declaration).
 
 #### Variable Scopes
@@ -208,36 +206,34 @@ true == 2 > 1                       // true
 #### Declaration
 
 ```javascript
-var a = "string";
+const a = "string";
 var b;                              // nil
 
-const a = 5;
+b = 5;
+print(b);                           // 5
+
 a = 6                               // error
 
 var variable = "one";
 print(variable)                     // "one"
-var variable = 2;
-print(variable)                     // 2
+var variable = 2;                   // error (variable can't be redefined)
 ```
 
 #### Scopes
 
 ```javascript
 var a = 1;
-var b = 2;
 
 {
-    var a = 5;
-    print(a);           // 5
-
-    b = 3;
+    print(a);           // 1
+    a = a + 1;
+    print(a);           // 2
 
     var c = 10;
 }
 
-print(a);               // 1
-print(b);               // 3
-print(c);               // Error
+print(a);               // 2
+print(c);               // error
 ```
 
 ### Comments
@@ -262,16 +258,17 @@ if (number < minNumber>) {
 
 ```javascript
 var a;
+var b;
 
-if (someCondition or !otherCondition) a = true;
+if (b = someCondition or !otherCondition) a = true;
 else a = false;
 
-if (someCondition == false and otherCondition) {
+if (b = someCondition == false and otherCondition) {
     a = true;
-    print(a);
+    print(b);           // true
 } else {
     a = false;
-    print(a);
+    print(b);           // false
 }
 ```
 
@@ -324,7 +321,7 @@ wrapper(getSum)(5, 3)   // returns 9
 #### Recursion
 
 ```javascript
-fn fib(n) {
+fn fib(const n) {
     if (n <= 1) return n;
     return fib(n - 2) + fib(n - 1);
 }
@@ -350,8 +347,7 @@ fn name() {
 
 name();                 // "Jane"
 
-// or: name = "Doe"
-var name = "Doe";
+name = "Doe";
 print(name);            // "Doe"
 ```
 
@@ -359,28 +355,22 @@ print(name);            // "Doe"
 
 ```javascript
 var a = 0;
-var b = 0;
 
 fn add(value) {
     a = 1;
     value = 1;
-    var b = 10;
-    print(b);               // 10
     fn inner() {
-        print(b);           // 10
-        var b = 20;
-        print(b);           // 20
+        value = 2;
     }
-    print(b);               // 10
-    c = 1;                  // Error (c not declared)
+    print(value);           // 2
+    b = 1;                  // Error (b not declared)
 }
 
 fn main() {
-    var c = 0;
+    var b = 0;
     var value = 0;
     add(value);
     print(a);               // 1 (the value was modified inside the function)
-    print(b);               // 0 (b was declared in the local scope of the function, so it didn't change)
     print(value);           // 0 (arguments are passed by value, not by reference)
 }
 ```
