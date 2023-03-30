@@ -514,3 +514,5 @@ To handle errors, parser uses `error_handler` object that is present in the `sca
 Interpreter's job is to apply static analysis to the **AST** and execute the code. To run the program, the interpreter traverses the syntax tree one branch and leaf at a time, evaluating each node as it goes.
 
 ## Testing
+
+There will be a set of unit tests for each module and integration tests to verify how modules work together. Acceptance testing will also be applied for testing the whole interpreter against prepared examples.
