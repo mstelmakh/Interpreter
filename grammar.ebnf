@@ -1,25 +1,26 @@
 (* General *)
-program                 = {declaration | statement}, EOF ;
+program                 = {statement}, EOF ;
 declaration             = function_declaration
                         | variable_declaration ;
 function_declaration    = "fn" IDENTIFIER "(" [parameters] ")" block ;
-variable_declaration    = "var" IDENTIFIER ["=" assignment] ";" ;
-assignment              = IDENTIFIER "=" assignment
-                        | expression ;
-block                   = "{" {declaration | statement} "}" ;
+variable_declaration    = ("var" | "const") IDENTIFIER ["=" expression] ";" ;
+block                   = "{" {statement} "}" ;
 
 (* Statements *)
-statement               = expression_statement
+statement               = declaration
+                        | expression_statement
                         | if_statement
                         | while_statement
                         | return_statement ;
-expression_statement    = assignment ";" ;
+expression_statement    = expression ";" ;
 if_statement            = "if" "(" expression ")" (statement | block) ["else" (statement | block)] ;
 while_statement         = "while" "(" expression ")" (statement | block) ;
 return_statement        = "return" [expression] ";" ;
 
 (* Expressions *)
-expression              = logical_or ;
+expression              = assignment ;
+assignment              = IDENTIFIER "=" assignment
+                        | logical_or ;
 logical_or              = logical_and {"or" logical_and} ;
 logical_and             = equality {"and" equality} ;
 equality                = comparison {("!=" | "==") comparison} ;
@@ -39,14 +40,16 @@ arguments               = expression {"," expression} ;
 (* Literals *)
 LITERAL                 = NUMBER
                         | STRING
-                        | "true"
-                        | "false"
+                        | BOOLEAN
                         | "nil";
-NUMBER                  = (
-                            "0"
-                            | DIGIT_NON_ZERO {DIGIT}
-                        ) ["." DIGIT {DIGIT}] ;
-STRING                  = "\"" {any_char - "\""} "\"" ;
+NUMBER                  = INTEGER | FLOAT ;
+FLOAT                   = INTEGER "." DIGIT {DIGIT} ;
+INTEGER                 = "0"
+                        | DIGIT_NON_ZERO {DIGIT} ;
+BOOLEAN                 = "true" | "false" ;
+STRING                  = "\"" {CHAR} "\"" ;
+CHAR                    = (any_char - "\"" - "\\") "\\" escape ;
+ESCAPE                  = "t" | "b" | "r" | "n" | "\"" | "\\" ;
 IDENTIFIER              = ALPHA {ALPHA | DIGIT} ;
 ALPHA                   = LETTER | "_" ;
 LETTER                  = "a" | "b" | ... | "z" | "A" | "B" | ... | "Z" ;
