@@ -15,6 +15,7 @@ There will be only a few data types:
 - **Booleans.** There are two boolean values: `True` and `False`.
 - **Numbers.** The language has two kind of numbers: `int` and `float`.
 - **Strings.** The strings are enclosed in double quotes. Escape character (`\`) allows to insert special characters in strings.
+- **Functions.** See [functions](#functions).
 - **Nil.** Represents the absence of a value.
 
 ### Expressions
@@ -66,7 +67,7 @@ See [examples](#comparison-1).
 #### Logical operators
 
 There are three logical operators used:
-- **!** - the NOT operator, returns `false` if its operand is `true`, and vice versa.
+- **not** - returns `false` if its operand is `true`, and vice versa.
 - **and** - determines if two values are both `true`. It doesn't evaluate the right operand if the left one is `false`.
 - **or** - determines if either of two values (or both) are `true`. It doesn't evaluate the right operand if the left one is `true`.
 
@@ -193,7 +194,7 @@ true + false = false + true = 1
 10 >= 10;                           // true
 (5 == 5) and (10 == 10);            // true
 (5 == 5) or (10 == 5);              // true
-!(5 == 10);                         // true
+not (5 == 10);                      // true
 1 == "1" == true                    // true
 1 < 1 == true                       // false
 true == 2 > 1                       // true
@@ -260,7 +261,7 @@ if (number < minNumber>) {
 var a;
 var b;
 
-if (b = someCondition or !otherCondition) a = true;
+if (b = someCondition or not otherCondition) a = true;
 else a = false;
 
 if (b = someCondition == false and otherCondition) {
