@@ -60,7 +60,7 @@ The comparison rules can be roughly summarized as follows:
 3. Because the language is weakly typed, when comparing values of different types, the interpreter will attempt to coerce the values to a common type using the type coersion rules:
     - If one of the operands is `nil`, convert `nil` to 0. Then compare two operands again.
     - If one of the operands is a Boolean, convert the boolean to a number: true is converted to 1, and false is converted to 0. Then compare two operands again.
-    - Number to string: the string is converted to a number if possible. If the string cannot be converted to a number, the comparison will always return false.
+    - Number to string: string is converted to number if possible, otherwise, the number is converted to string, then values are compared.
 
 See [examples](#comparison-1).
 
@@ -161,7 +161,7 @@ Each case clause specifies:
 
 #### Patterns
 
-There are two patterns that can be used in the case block: **literal** and **type** patterns. The patterns can be combined using `or` and `and` keywords.
+There are two patterns that can be used in the case block: **literal** and **type** patterns. The patterns can be combined using `or` and `and` keywords. Only one case block can be executed. If multiple patterns fit the matched expression - the first one will be executed.
 
 ##### Literal pattern
 
@@ -233,6 +233,14 @@ not (5 == 10);                      // true
 true == 2 > 1                       // true
 (2 >= 1) and (1 >= 0)               // true
 2 >= 1 >= 0                         // error (not grammatically correct)
+
+5 <= "5"                            // true
+7 > "-1"                            // true
+1000 < "1000a"                      // true
+10001 < "1000a"                     // true
+12345000 < "a"                      // true
+"hello" < "hello!"                  // true
+"hello" > "Hello"                   // true
 ```
 
 ### Variables
@@ -417,6 +425,7 @@ match (number) {
     (1): print("Just one");                 // equals to (True):
     (2): print("A couple");
     (-1): print("One less than nothing");
+    (_): print("Unknown");
 }
 ```
 
