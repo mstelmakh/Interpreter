@@ -17,6 +17,21 @@ if_statement            = "if" "(" expression ")" (statement | block) ["else" (s
 while_statement         = "while" "(" expression ")" (statement | block) ;
 return_statement        = "return" [expression] ";" ;
 
+(* Pattern matching *)
+match_statement         = "match" "(" arguments ")" "{" {case_block} "}" ;
+case_block              = "(" pattern ")" [guard] ":" (statement : block) ;
+guard                   = "if" "(" expression ")" ;
+pattern                 = or_pattern;
+or_pattern              = and_pattern {"or" and_pattern} ;
+and_pattern             = closed_pattern {"and" closed_pattern} ;
+closed_pattern          = literal_pattern
+                        | type_pattern;
+literal_pattern         = unary;
+type_pattern            = TYPE;
+
+TYPE                    = "Str" | "Num" | "Bool" | "Func" | "Nil" ;
+
+
 (* Expressions *)
 expression              = assignment ;
 assignment              = IDENTIFIER "=" assignment
@@ -36,6 +51,7 @@ call                    = IDENTIFIER {"(" [arguments] ")"} ;
 (* Helpers for expressions *)
 parameters              = ["const"] IDENTIFIER {"," ["const"] IDENTIFIER} ;
 arguments               = expression {"," expression} ;
+
 
 (* Literals *)
 LITERAL                 = NUMBER

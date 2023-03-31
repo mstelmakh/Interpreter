@@ -105,11 +105,13 @@ See [example](#comments-1).
 
 ### Control flow
 
-There are two ways of controlling the flow of the program:
+There are three ways of controlling the flow of the program:
 
 **if** - executes statement or block of statements based on the condition. See [example](#if).
 
 **while** - executes statement or block of statements while the condition evaluates to `true`. See [example](#while).
+
+**match** - see [Pattern Matching](#pattern-matching).
 
 The scope of the variables described [here](#variable-scopes).
 
@@ -141,6 +143,37 @@ Functions and variables are stored in the same namespace, so it is not possible 
 #### Function Scopes
 
 Scopes does work [the same way](#variable-scopes) they do in blocks, but here we have one more case to consider - when the variable is passed as the argument to the function. See [example](#scopes-1).
+
+### Pattern matching
+
+Pat­tern match­ing is a form of con­di­tional branch­ing which al­lows to con­cisely match on data struc­ture pat­terns and bind vari­ables at the same time.
+
+#### Syntax
+
+Syntactically, a match statement contains:
+- a subject expressions
+- zero or more case clauses
+
+Each case clause specifies:
+- a pattern (the overall shape to be matched)
+- an optional “guard” (a condition to be checked if the pattern matches)
+- a code to be executed if the case clause is selected
+
+#### Patterns
+
+There are two patterns that can be used in the case block: **literal** and **type** patterns. The patterns can be combined using `or` and `and` keywords.
+
+##### Literal pattern
+
+A literal pattern consists of a simple literal like a string, a number, a Boolean literal (true or false), or nil. Literal pattern uses equality with literal on the right hand side.
+
+##### Type pattern
+
+A type pattern consists of a `Str`, `Num`, `Bool`, `Func`, `Nil` types. It compares the type of the matched expression with this type.
+
+#### Guard
+
+Each top-level pattern can be followed by a guard of the form if expression. A case clause succeeds if the pattern matches and the guard evaluates to a true value.
 
 ## Code examples
 
@@ -373,6 +406,150 @@ fn main() {
     add(value);
     print(a);               // 1 (the value was modified inside the function)
     print(value);           // 0 (arguments are passed by value, not by reference)
+}
+```
+
+### Pattern matching
+
+```
+match (number) {
+    (0): print("Nothing");
+    (1): print("Just one");                 // equals to (True):
+    (2): print("A couple");
+    (-1): print("One less than nothing");
+}
+```
+
+#### Match expression
+
+```
+match (a, b, c) {}
+
+match ("John", 25, true, someFunc(), anotherFunc, nil) {}
+
+fn getJohnsSalary() {
+    return 2000;
+}
+
+var name = age = married = birth_year = getSalaryFunc = n_children;
+match (
+    name="John",
+    age=25,
+    married=false,
+    n_children=nil
+    birth_year=getBirthYear(age),
+    getSalaryFunc=getJohnsSalary
+){}
+```
+
+#### Literal pattern
+
+```
+match (number) {
+    (0): {}
+    (1): {}
+    (-1): {}
+    (true): {}
+    (not true): {}
+    ("string"): {}
+    (nil): {}
+    (someFunc()): {}
+    ((someFunc() and 1+1>5 or true) or false and (not true or false)): {}
+}
+```
+
+#### Type pattern
+
+```
+var name = age;
+match (input1, input2) {
+    (Str, Num): {
+        name = input1;
+        age = input2;
+    }
+    (Num, Str): {
+        name = input2;
+        age = input1;
+    }
+    (_, _): print("Invalid input");
+}
+```
+
+#### Guard
+
+```
+match (name) {
+    (Str) if (name): print("Hello" + name);
+    (_): print("Hello!");
+}
+```
+
+#### Complex examples
+
+```
+match (name="John", age=10) {
+    (Str, Num) if (age < 30): print(name + " is young.");
+    (Str, Num) if (age > 30 and age < 60): print(name + " is in middle age");
+    (Str, Num): print(name + " is old");
+    (_, _): print("Invalid input");
+}
+```
+
+```
+match (x, y) {
+    (Num, Num) if (x > 0 and y > 0): print("first");
+    (Num, Num) if (x < 0 and y > 0): print("second);
+    (Num, Num) if (x < 0 and y < 0): print("third");
+    (Num, Num) if (x > 0 and y < 0): print("fourth");
+    (Num and 0, Num): print("on Y");                // Not the same as (0, Num) pattern
+    (Num, Num): print("on X");
+    (_, _): print("Invalid coords.");
+}
+```
+
+```
+fn getJohnsSalary() {
+    return 2000;
+}
+
+var name = age = married = birth_year = getSalaryFunc = n_children;
+match (
+    name="John",
+    age=25,
+    married=false,
+    n_children=0
+    birth_year=getBirthYear(age),
+    getSalaryFunc=getJohnsSalary
+) {
+    (Str, Num, Bool, Num, Num, Func) if (married): {
+        var salary = getSalaryFunc();
+        if (n_children > 0)
+            print(name + " was born in " + birth_year + " , he has a job. He is married and has " + n_children + " children.");
+        else
+            print(name + " was born in " + birth_year + " , he has a job. He is married but doesn't have children.");
+    }
+    (Str, Num, Bool, Num, Num, Func) if (not married): {
+        var salary = getSalaryFunc();
+        if (n_children > 0)
+            print(name + " was born in " + birth_year + " he has a job. He has " + n_children + " children.");
+        else
+            print(name + " was born in " + birth_year + " he has a job. He doesn't have children.");
+    }
+    (Str, Num, Bool, Num, Num, Nil) if (married): {
+        var salary = getSalaryFunc();
+        if (n_children > 0)
+            print(name + " was born in " + birth_year + " , he doesn't have a job. He is married and has " + n_children + " children.");
+        else
+            print(name + " was born in " + birth_year + " , he doesn't have a job. He is married but doesn't have children.");
+    }
+    (Str, Num, Bool, Num, Num, Nil) if (not married): {
+        var salary = getSalaryFunc();
+        if (n_children > 0)
+            print(name + " was born in " + birth_year + " he doesn't have a job. He has " + n_children + " children.");
+        else
+            print(name + " was born in " + birth_year + " he doesn't have a job. He doesn't have children.");
+    }
+    (_, _, _, _, _, _): print("Invalid input");
 }
 ```
 
