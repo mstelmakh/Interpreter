@@ -202,8 +202,9 @@ true + false = false + true = 1
 
 // On Numbers
 4 + 6                       = 10
-"5" + 3                     = "53"
-7 + "2"                     = "72"
+"5" + 3                     = 53    // "5" is coerced to number
+7 + "2.5"                   = 72.5  // "2.5" is coerced to number
+7 + "2a"                    = "72a" // "2a" can not be coerced to number
 
 // Operator "-" is used only for numerical substraction
 7 - "2" = "7" - 2           = 5     // string is coerced to number
