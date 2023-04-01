@@ -64,7 +64,8 @@ INTEGER                 = "0"
                         | DIGIT_NON_ZERO {DIGIT} ;
 BOOLEAN                 = "true" | "false" ;
 STRING                  = "\"" {CHAR} "\"" ;
-CHAR                    = (any_char - "\"" - "\\") "\\" escape ;
+CHAR                    = (any_char - "\"" - "\\")
+                        | "\\" escape ;
 ESCAPE                  = "t" | "b" | "r" | "n" | "\"" | "\\" ;
 IDENTIFIER              = ALPHA {ALPHA | DIGIT} ;
 ALPHA                   = LETTER | "_" ;
