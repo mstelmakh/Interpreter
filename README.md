@@ -136,7 +136,7 @@ someFunction(5, 5);
 someFunction();
 ```
 
-Function can be passed to another function, as well as it can be declared in another function. See [example](#closure).
+Function can be passed to another function, as well as it can be declared in another function. See [example](#nested-functions).
 
 Functions and variables are stored in the same namespace, so it is not possible to declare a function and a variable with the same name within the same scope and use them both. The same goes for redefining a function. The latest definition overrides previous ones. See [example](#overriding).
 
@@ -159,6 +159,8 @@ Each case clause specifies:
 - an optional “guard” (a condition to be checked if the pattern matches)
 - a code to be executed if the case clause is selected
 
+See [example](#pattern-matching-1).
+
 #### Patterns
 
 There are two patterns that can be used in the case block: **literal** and **type** patterns. The patterns can be combined using `or` and `and` keywords. Only one case block can be executed. If multiple patterns fit the matched expression - the first one will be executed.
@@ -167,13 +169,19 @@ There are two patterns that can be used in the case block: **literal** and **typ
 
 A literal pattern consists of a simple literal like a string, a number, a Boolean literal (true or false), or nil. Literal pattern uses equality with literal on the right hand side.
 
+See [example](#literal-pattern-1).
+
 ##### Type pattern
 
 A type pattern consists of a `Str`, `Num`, `Bool`, `Func`, `Nil` types. It compares the type of the matched expression with this type.
 
+See [example](#type-pattern-1).
+
 #### Guard
 
 Each top-level pattern can be followed by a guard of the form if expression. A case clause succeeds if the pattern matches and the guard evaluates to a true value.
+
+See [example](#guard-1).
 
 ## Code examples
 
@@ -341,7 +349,7 @@ fn getSum(a, const b) {
 }
 ```
 
-#### Closure
+#### Nested functions
 
 ```Rust
 fn getSum(a, b) {
