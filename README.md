@@ -451,7 +451,7 @@ print(number)                                 // error (number is unbound)
 ```
 match (number) {
     (==0): print("Nothing");
-    (==1): print("Just one");                 // equals to (True):
+    (==1): print("Just one");                 // equals to (==true):
     (==2): print("A couple");
     (==-1): print("One less than nothing");
     (_): print("Unknown");
