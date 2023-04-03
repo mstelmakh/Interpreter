@@ -3,7 +3,7 @@ program                 = {statement}, EOF ;
 declaration             = function_declaration
                         | variable_declaration ;
 function_declaration    = "fn" IDENTIFIER "(" [parameters] ")" block ;
-variable_declaration    = ("var" | "const") IDENTIFIER ["=" expression] ";" ;
+variable_declaration    = ("var" | "const") IDENTIFIER ["=" logical_or] ";" ;
 block                   = "{" {statement} "}" ;
 
 (* Statements *)
@@ -34,22 +34,23 @@ TYPE                    = "Str" | "Num" | "Bool" | "Func" | "Nil" ;
 
 (* Expressions *)
 expression              = assignment ;
-assignment              = IDENTIFIER "=" assignment
-                        | logical_or ;
+assignment              = IDENTIFIER "=" logical_or ;
 logical_or              = logical_and {"or" logical_and} ;
 logical_and             = equality {"and" equality} ;
 equality                = comparison {("!=" | "==") comparison} ;
 comparison              = term [(">" | ">=" | "<" | "<=") term] ;
 term                    = factor {("-" | "+") factor} ;
 factor                  = unary {("/" | "*") unary} ;
-unary                   = ("not" | "-") unary
-                        | call
+unary                   = ("not" | "-") primary ;
+primary                 = call
+                        | IDENTIFIER
                         | LITERAL
                         | "(" expression ")" ;
-call                    = IDENTIFIER {"(" [arguments] ")"} ;
+call                    = IDENTIFIER "(" [arguments] ")" {"(" [arguments] ")"} ;
 
 (* Helpers for expressions *)
-parameters              = ["const"] IDENTIFIER {"," ["const"] IDENTIFIER} ;
+parameter               = ["const"] IDENTIFIER ;
+parameters              = parameter {"," parameter} ;
 arguments               = expression {"," expression} ;
 
 
