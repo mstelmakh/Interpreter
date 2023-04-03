@@ -54,12 +54,14 @@ The comparison rules can be roughly summarized as follows:
     - Number: The values are compared.
     - String: The values are compared character by character, using the Unicode value of each character.
     - Boolean: The boolean is converted to a number. true is converted to 1, and false is converted to 0. Then they are compared as numbers.
+    - Functions: The names of the functions are compared as strings.
 
 2. If operator is `==` and one of the operands is `nil`, the other must also be `nil` to return true. Otherwise return false.
 
 3. Because the language is weakly typed, when comparing values of different types, the interpreter will attempt to coerce the values to a common type using the type coersion rules:
     - If one of the operands is `nil`, convert `nil` to 0. Then compare two operands again.
     - If one of the operands is a Boolean, convert the boolean to a number: true is converted to 1, and false is converted to 0. Then compare two operands again.
+    - If one of the operands is a function, convert the function to a string. Then compare two operands again.
     - Number to string: string is converted to number if possible, otherwise, the number is converted to string, then values are compared.
 
 See [examples](#comparison-1).
@@ -155,7 +157,7 @@ Syntactically, a match statement contains:
 - zero or more case clauses
 
 Each case clause specifies:
-- a pattern (the overall shape to be matched)
+- a pattern (or multiple patterns separated by `and` or `or` keywords) and optional assignment to a constant variable (using `as` keyword), which then will be unbound
 - an optional “guard” (a condition to be checked if the pattern matches)
 - a code to be executed if the case clause is selected
 
@@ -163,13 +165,13 @@ See [example](#pattern-matching-1).
 
 #### Patterns
 
-There are two patterns that can be used in the case block: **literal** and **type** patterns. The patterns can be combined using `or` and `and` keywords. Only one case block can be executed. If multiple patterns fit the matched expression - the first one will be executed.
+There are two patterns that can be used in the case block: **compare** and **type** patterns. The patterns can be combined using `or` and `and` keywords. Only one case block can be executed. If multiple patterns fit the matched expression - only the first one will be executed.
 
-##### Literal pattern
+##### Compare pattern
 
-A literal pattern consists of a simple literal like a string, a number, a Boolean literal (true or false), or nil. Literal pattern uses equality with literal on the right hand side.
+A compare pattern consists of a comparison or equality sign and a unary expression. Compare pattern evaluates the matchable with the unary using given operator.
 
-See [example](#literal-pattern-1).
+See [example](#compare-pattern-1).
 
 ##### Type pattern
 
@@ -214,6 +216,11 @@ true + false = false + true = 1
 7 + "2.5"                   = 72.5  // "2.5" is coerced to number
 7 + "2a"                    = "72a" // "2a" can not be coerced to number
 
+// On Functions
+// functions are converted to string containing its name
+"function " + someFunction  = "function: someFunction"
+1 + function123             = "1function123"
+
 // Operator "-" is used only for numerical substraction
 7 - "2" = "7" - 2           = 5     // string is coerced to number
 10 - ""                     = 10    // empty string is coerced to 0
@@ -250,6 +257,7 @@ true == 2 > 1                       // true
 12345000 < "a"                      // true
 "hello" < "hello!"                  // true
 "hello" > "Hello"                   // true
+"Hello" < sayHelloFunc              // true
 ```
 
 ### Variables
@@ -429,11 +437,23 @@ fn main() {
 ### Pattern matching
 
 ```
+match (2+2) {
+   (Num and >4 as number): print(number + " is greater than four.");
+   (_ as number): {
+        print(number + " is less than two");
+        number = number + 1;                        // error (number is constant)
+   }
+}
+
+print(number)                                 // error (number is unbound)
+```
+
+```
 match (number) {
-    (0): print("Nothing");
-    (1): print("Just one");                 // equals to (True):
-    (2): print("A couple");
-    (-1): print("One less than nothing");
+    (==0): print("Nothing");
+    (==1): print("Just one");                 // equals to (True):
+    (==2): print("A couple");
+    (==-1): print("One less than nothing");
     (_): print("Unknown");
 }
 ```
@@ -444,50 +464,37 @@ match (number) {
 match (a, b, c) {}
 
 match ("John", 25, true, someFunc(), anotherFunc, nil) {}
-
-fn getJohnsSalary() {
-    return 2000;
-}
-
-var name = age = married = birth_year = getSalaryFunc = n_children;
-match (
-    name="John",
-    age=25,
-    married=false,
-    n_children=nil
-    birth_year=getBirthYear(age),
-    getSalaryFunc=getJohnsSalary
-){}
 ```
 
-#### Literal pattern
+#### Compare pattern
 
 ```
 match (number) {
-    (0): {}
-    (1): {}
-    (-1): {}
-    (true): {}
-    (not true): {}
-    ("string"): {}
-    (nil): {}
-    (someFunc()): {}
-    ((someFunc() and 1+1>5 or true) or false and (not true or false)): {}
+    (==0): {}
+    (==1): {}
+    (>1): {}
+    (<-100): {}
+    (!=100): {}
+    (==true): {}
+    (==not true as result): {}
+    (=="string"): {}
+    (==nil): {}
+    (==someFunc()): {}
+    (==(someFunc() and 1+1>5 or true) or ==false as result): {}
 }
 ```
 
 #### Type pattern
 
 ```
-var name = age;
 match (input1, input2) {
-    (Str, Num): {
-        name = input1;
-        age = input2;
+    (Str as name, Num as age): {
+        print("name is " + name);
+        print("age is " + name);
     }
-    (Num, Str): {
-        name = input2;
-        age = input1;
+    (Num as age, Str as name): {
+        print("name is " + name);
+        print("age is " + name);
     }
     (_, _): print("Invalid input");
 }
@@ -496,78 +503,32 @@ match (input1, input2) {
 #### Guard
 
 ```
-match (name) {
-    (Str) if (name): print("Hello" + name);
+match ("John") {
+    (Str as name) if someFunction(name): print("Hello" + name);
     (_): print("Hello!");
 }
 ```
 
-#### Complex examples
+#### Examples
 
 ```
-match (name="John", age=10) {
-    (Str, Num) if (age < 30): print(name + " is young.");
-    (Str, Num) if (age > 30 and age < 60): print(name + " is in middle age");
-    (Str, Num): print(name + " is old");
+match ("John", 10) {
+    (Str as name, Num and <30) if (age < 30): print(name + " is young.");
+    (Str as name, Num and >30 and <60): print(name + " is in middle age");
+    (Str as name, Num): print(name + " is old");
     (_, _): print("Invalid input");
 }
 ```
 
 ```
 match (x, y) {
-    (Num, Num) if (x > 0 and y > 0): print("first");
-    (Num, Num) if (x < 0 and y > 0): print("second);
-    (Num, Num) if (x < 0 and y < 0): print("third");
-    (Num, Num) if (x > 0 and y < 0): print("fourth");
-    (Num and 0, Num): print("on Y");                // Not the same as (0, Num) pattern
+    (Num and >0, Num and >0 ): print("first");
+    (Num and <0, Num and >0): print("second);
+    (Num and <0, Num and <0): print("third");
+    (Num and >0, Num and <0): print("fourth");
+    (Num and ==0, Num): print("on Y");                                // Not the same as (==0, Num) pattern
     (Num, Num): print("on X");
-    (_, _): print("Invalid coords.");
-}
-```
-
-```
-fn getJohnsSalary() {
-    return 2000;
-}
-
-var name = age = married = birth_year = getSalaryFunc = n_children;
-match (
-    name="John",
-    age=25,
-    married=false,
-    n_children=0
-    birth_year=getBirthYear(age),
-    getSalaryFunc=getJohnsSalary
-) {
-    (Str, Num, Bool, Num, Num, Func) if (married): {
-        var salary = getSalaryFunc();
-        if (n_children > 0)
-            print(name + " was born in " + birth_year + " , he has a job. He is married and has " + n_children + " children.");
-        else
-            print(name + " was born in " + birth_year + " , he has a job. He is married but doesn't have children.");
-    }
-    (Str, Num, Bool, Num, Num, Func) if (not married): {
-        var salary = getSalaryFunc();
-        if (n_children > 0)
-            print(name + " was born in " + birth_year + " he has a job. He has " + n_children + " children.");
-        else
-            print(name + " was born in " + birth_year + " he has a job. He doesn't have children.");
-    }
-    (Str, Num, Bool, Num, Num, Nil) if (married): {
-        var salary = getSalaryFunc();
-        if (n_children > 0)
-            print(name + " was born in " + birth_year + " , he doesn't have a job. He is married and has " + n_children + " children.");
-        else
-            print(name + " was born in " + birth_year + " , he doesn't have a job. He is married but doesn't have children.");
-    }
-    (Str, Num, Bool, Num, Num, Nil) if (not married): {
-        var salary = getSalaryFunc();
-        if (n_children > 0)
-            print(name + " was born in " + birth_year + " he doesn't have a job. He has " + n_children + " children.");
-        else
-            print(name + " was born in " + birth_year + " he doesn't have a job. He doesn't have children.");
-    }
-    (_, _, _, _, _, _): print("Invalid input");
+    (_ as x, _ as y): print("Invalid coords: " + x + ", " + y);
 }
 ```
 

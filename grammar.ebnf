@@ -19,29 +19,27 @@ return_statement        = "return" [expression] ";" ;
 
 (* Pattern matching *)
 match_statement         = "match" "(" arguments ")" "{" {case_block} "}" ;
-case_block              = "(" pattern ")" [guard] ":" (statement : block) ;
+case_block              = "(" pattern_expression {"," pattern_expression} ")" [guard] ":" (statement | block) ;
 guard                   = "if" "(" expression ")" ;
-pattern                 = or_pattern;
+pattern_expression      = ("_" | pattern) ["as" IDENTIFIER] ;
+pattern                 = or_pattern ;
 or_pattern              = and_pattern {"or" and_pattern} ;
 and_pattern             = closed_pattern {"and" closed_pattern} ;
-closed_pattern          = literal_pattern
-                        | type_pattern;
-literal_pattern         = unary;
-type_pattern            = TYPE;
-
-TYPE                    = "Str" | "Num" | "Bool" | "Func" | "Nil" ;
-
+closed_pattern          = compare_pattern
+                        | type_pattern ;
+compare_pattern         = (EQUALITY_SIGN | COMPARISON_SIGN) unary ;
+type_pattern            = TYPE ;
 
 (* Expressions *)
 expression              = assignment ;
 assignment              = IDENTIFIER "=" logical_or ;
 logical_or              = logical_and {"or" logical_and} ;
 logical_and             = equality {"and" equality} ;
-equality                = comparison {("!=" | "==") comparison} ;
-comparison              = term [(">" | ">=" | "<" | "<=") term] ;
+equality                = comparison {EQUALITY_SIGN comparison} ;
+comparison              = term [COMPARISON_SIGN term] ;
 term                    = factor {("-" | "+") factor} ;
 factor                  = unary {("/" | "*") unary} ;
-unary                   = ("not" | "-") primary ;
+unary                   = ["not" | "-"] primary ;
 primary                 = call
                         | IDENTIFIER
                         | LITERAL
@@ -59,6 +57,7 @@ LITERAL                 = NUMBER
                         | STRING
                         | BOOLEAN
                         | "nil";
+TYPE                    = "Str" | "Num" | "Bool" | "Func" | "Nil" ;
 NUMBER                  = INTEGER | FLOAT ;
 FLOAT                   = INTEGER "." DIGIT {DIGIT} ;
 INTEGER                 = "0"
@@ -73,3 +72,5 @@ ALPHA                   = LETTER | "_" ;
 LETTER                  = "a" | "b" | ... | "z" | "A" | "B" | ... | "Z" ;
 DIGIT                   = "0" | DIGIT_NON_ZERO ;
 DIGIT_NON_ZERO          = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+COMPARISON_SIGN         = ">" | ">=" | "<" | "<=" ;
+EQUALITY_SIGN           = "!=" | "==" ;
