@@ -450,10 +450,10 @@ print(number)                                 // error (number is unbound)
 
 ```
 match (number) {
-    (==0): print("Nothing");
-    (==1): print("Just one");                 // equals to (==true):
-    (==2): print("A couple");
-    (==-1): print("One less than nothing");
+    (0): print("Nothing");
+    (1): print("Just one");                 // equals to (==true):
+    (2): print("A couple");
+    (-1): print("One less than nothing");
     (_): print("Unknown");
 }
 ```
@@ -470,17 +470,17 @@ match ("John", 25, true, someFunc(), anotherFunc, nil) {}
 
 ```
 match (number) {
-    (==0): {}
-    (==1): {}
+    (0): {}
+    (1): {}
     (>1): {}
     (<-100): {}
     (!=100): {}
-    (==true): {}
-    (==not true as result): {}
-    (=="string"): {}
-    (==nil): {}
-    (==someFunc()): {}
-    (==(someFunc() and 1+1>5 or true) or ==false as result): {}
+    (true): {}
+    (not true as result): {}
+    ("string"): {}
+    (nil): {}
+    (someFunc()): {}
+    ((someFunc() and 1+1>5 or true) or ==false as result): {}
 }
 ```
 

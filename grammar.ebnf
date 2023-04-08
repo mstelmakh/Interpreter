@@ -27,7 +27,7 @@ or_pattern              = and_pattern {"or" and_pattern} ;
 and_pattern             = closed_pattern {"and" closed_pattern} ;
 closed_pattern          = compare_pattern
                         | type_pattern ;
-compare_pattern         = (EQUALITY_SIGN | COMPARISON_SIGN) unary ;
+compare_pattern         = ["!=" | COMPARISON_SIGN] unary ;
 type_pattern            = TYPE ;
 
 (* Expressions *)
