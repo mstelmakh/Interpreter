@@ -1,55 +1,77 @@
 (* General *)
-program                 = {declaration | statement}, EOF ;
+program                 = {statement}, EOF ;
 declaration             = function_declaration
                         | variable_declaration ;
-function_declaration    = "fn" function ;
-variable_declaration    = "var" IDENTIFIER ["=" assignment] ";" ;
-assignment              = IDENTIFIER "=" assignment
-                        | expression ;
-block                   = "{" {declaration | statement} "}" ;
+function_declaration    = "fn" IDENTIFIER "(" [parameters] ")" block ;
+variable_declaration    = ("var" | "const") IDENTIFIER ["=" logical_or] ";" ;
+block                   = "{" {statement} "}" ;
 
 (* Statements *)
-statement               = expression_statement
+statement               = declaration
+                        | expression_statement
                         | if_statement
                         | while_statement
                         | return_statement ;
-expression_statement    = assignment ";" ;
+expression_statement    = expression ";" ;
 if_statement            = "if" "(" expression ")" (statement | block) ["else" (statement | block)] ;
 while_statement         = "while" "(" expression ")" (statement | block) ;
 return_statement        = "return" [expression] ";" ;
 
+(* Pattern matching *)
+match_statement         = "match" "(" arguments ")" "{" {case_block} "}" ;
+case_block              = "(" pattern_expression {"," pattern_expression} ")" [guard] ":" (statement | block) ;
+guard                   = "if" "(" expression ")" ;
+pattern_expression      = ("_" | pattern) ["as" IDENTIFIER] ;
+pattern                 = or_pattern ;
+or_pattern              = and_pattern {"or" and_pattern} ;
+and_pattern             = closed_pattern {"and" closed_pattern} ;
+closed_pattern          = compare_pattern
+                        | type_pattern ;
+compare_pattern         = (EQUALITY_SIGN | COMPARISON_SIGN) unary ;
+type_pattern            = TYPE ;
+
 (* Expressions *)
-expression              = logical_or ;
+expression              = assignment ;
+assignment              = IDENTIFIER "=" logical_or ;
 logical_or              = logical_and {"or" logical_and} ;
 logical_and             = equality {"and" equality} ;
-equality                = comparison {("!=" | "==") comparison} ;
-comparison              = term [(">" | ">=" | "<" | "<=") term] ;
+equality                = comparison {EQUALITY_SIGN comparison} ;
+comparison              = term [COMPARISON_SIGN term] ;
 term                    = factor {("-" | "+") factor} ;
 factor                  = unary {("/" | "*") unary} ;
-unary                   = ("!" | "-") unary
-                        | call
+unary                   = ["not" | "-"] primary ;
+primary                 = call
+                        | IDENTIFIER
                         | LITERAL
                         | "(" expression ")" ;
-call                    = IDENTIFIER {"(" [arguments] ")"} ;
+call                    = IDENTIFIER "(" [arguments] ")" {"(" [arguments] ")"} ;
 
 (* Helpers for expressions *)
-function                = IDENTIFIER "(" [parameters] ")" block ;
-parameters              = IDENTIFIER {"," IDENTIFIER} ;
+parameter               = ["const"] IDENTIFIER ;
+parameters              = parameter {"," parameter} ;
 arguments               = expression {"," expression} ;
+
 
 (* Literals *)
 LITERAL                 = NUMBER
                         | STRING
-                        | "true"
-                        | "false"
+                        | BOOLEAN
                         | "nil";
-NUMBER                  = (
-                            "0"
-                            | DIGIT_NON_ZERO {DIGIT}
-                        ) ["." DIGIT {DIGIT}] ;
-STRING                  = "\"" {any_char - "\""} "\"" ;
+TYPE                    = "Str" | "Num" | "Bool" | "Func" | "Nil" ;
+NUMBER                  = INTEGER | FLOAT ;
+FLOAT                   = INTEGER "." DIGIT {DIGIT} ;
+INTEGER                 = "0"
+                        | DIGIT_NON_ZERO {DIGIT} ;
+BOOLEAN                 = "true" | "false" ;
+STRING                  = "\"" {CHAR} "\"" ;
+CHAR                    = (any_char - "\"" - "\\")
+                        | "\\" escape ;
+ESCAPE                  = "t" | "b" | "r" | "n" | "\"" | "\\" ;
 IDENTIFIER              = ALPHA {ALPHA | DIGIT} ;
 ALPHA                   = LETTER | "_" ;
 LETTER                  = "a" | "b" | ... | "z" | "A" | "B" | ... | "Z" ;
 DIGIT                   = "0" | DIGIT_NON_ZERO ;
 DIGIT_NON_ZERO          = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+COMPARISON_SIGN         = ">" | ">=" | "<" | "<=" ;
+EQUALITY_SIGN           = "!=" | "==" ;
+COMMENT                 = "//" ;
