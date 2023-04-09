@@ -49,9 +49,23 @@ class Scanner:
         value = []
         while self.current_char and not self.current_char == '"':
             if self.current_char == "\\":
-                # TODO
                 self.current_char = self.stream.advance()
-                value.append("\"")
+                if self.current_char == "n":
+                    value.append("\n")
+                elif self.current_char == "b":
+                    value.append("\b")
+                elif self.current_char == "r":
+                    value.append("\r")
+                elif self.current_char == "t":
+                    value.append("\t")
+                elif self.current_char == "\\":
+                    value.append("\\")
+                elif self.current_char == "\"":
+                    value.append("\"")
+                else:
+                    self.error(
+                        f"Invalid escape character: '\\{self.current_char}'"
+                    )
             else:
                 value.append(self.current_char)
             self.current_char = self.stream.advance()

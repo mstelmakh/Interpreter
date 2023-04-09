@@ -11,7 +11,8 @@ class BaseErrorHandler(ABC):
 
 class ErrorHandler(BaseErrorHandler):
     def handle_lexer_error(self, exception: LexerError):
-        line = exception.position.line
-        column = exception.position.column
+        # line = exception.position.line
+        # column = exception.position.column
         message = exception.message
-        print(f"[{line}:{column}] Error: {message}")
+        print(f"LexerError: {message}")
+        # print(f"{line}:{column} | <code>")

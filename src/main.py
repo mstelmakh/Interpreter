@@ -15,9 +15,9 @@ def run_prompt() -> None:
         scanner = Scanner(stream, error_handler)
         filter = ScannerWithoutComments(scanner)
         token = filter.next_token()
-        for _ in range(10):
+        while (token and not token.type == TokenType.EOF) or not token:
             print(token)
-            token = filter.next_token()
+            token = scanner.next_token()
 
 
 def run(path: str) -> None:
