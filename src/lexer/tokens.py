@@ -1,6 +1,8 @@
 from enum import Enum, auto
 from dataclasses import dataclass
 
+from lexer.streams import Position
+
 
 class TokenType(Enum):
     # Single-character tokens.
@@ -129,4 +131,4 @@ COMPOSITE_CHAR_MAP = {
 class Token:
     type: TokenType
     value: int | float | str | None
-    line: int
+    position: Position

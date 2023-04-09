@@ -1,13 +1,18 @@
 from abc import ABC, abstractmethod
 from typing import TextIO
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+
+@dataclass
+class Position:
+    line: int
+    column: int
+    offset: int
 
 
 @dataclass
 class Stream(ABC):
-    line: int = 1
-    column: int = 0
-    position: int = 0
+    position: Position = field(default_factory=lambda: Position(1, 0, 0))
     current_char: str = ''
 
     @abstractmethod
@@ -17,29 +22,31 @@ class Stream(ABC):
 
 class FileStream(Stream):
     def __init__(self, file_handler: TextIO):
+        super().__init__()
         self.file_handler = file_handler
 
     def advance(self) -> str:
         if self.current_char == "\n":
-            self.column = 1
-            self.line += 1
+            self.position.column = 1
+            self.position.line += 1
         else:
-            self.column += 1
-        self.position = self.file_handler.tell()
+            self.position.column += 1
+        self.position.offset = self.file_handler.tell()
         self.current_char = self.file_handler.read(1)
         return self.current_char
 
 
 class TextStream(Stream):
     def __init__(self, text: str):
+        super().__init__()
         self.it = iter(text)
 
     def advance(self) -> str:
         if self.current_char == "\n":
-            self.column = 1
-            self.line += 1
+            self.position.column = 1
+            self.position.line += 1
         else:
-            self.column += 1
-        self.position += len(self.current_char.encode('utf-8'))
+            self.position.column += 1
+        self.position.offset += len(self.current_char.encode('utf-8'))
         self.current_char = next(self.it, '')
         return self.current_char
