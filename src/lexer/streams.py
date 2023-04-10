@@ -8,12 +8,12 @@ class Position:
     line: int
     column: int
     offset: int
-    filename: str | None
+    filename: str | None = None
 
 
 @dataclass
 class Stream(ABC):
-    position: Position = field(default_factory=lambda: Position(1, 0, 0, None))
+    position: Position = field(default_factory=lambda: Position(1, 0, 0))
     current_char: str = ''
 
     @abstractmethod
