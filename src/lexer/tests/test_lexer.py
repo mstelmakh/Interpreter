@@ -1,10 +1,10 @@
 import pytest
 
+from lexer.lexers import Lexer
 from lexer.streams import TextStream, Position
-from lexer.scanner import Scanner
-from lexer.tests.utils import get_all_tokens, DebugErrorHandler
 from lexer.tokens import Token, TokenType
 from lexer.exceptions import LexerError
+from lexer.tests.utils import get_all_tokens, DebugErrorHandler, create_lexer
 
 
 TEST_TEXT_TOKENS_MAP = [
@@ -35,10 +35,125 @@ TEST_TEXT_TOKENS_MAP = [
 
 
 @pytest.mark.parametrize("text, tokens, errors", TEST_TEXT_TOKENS_MAP)
-def test_identifier(text: str, tokens: list[Token], errors: list[LexerError]):
+def test_lexer(text: str, tokens: list[Token], errors: list[LexerError]):
     stream = TextStream(text)
     error_handler = DebugErrorHandler()
-    scanner = Scanner(stream, error_handler)
+    lexer = Lexer(stream, error_handler)
 
-    assert get_all_tokens(scanner) == tokens
+    assert get_all_tokens(lexer) == tokens
     assert error_handler.errors == errors
+
+
+def test_skip_whitespaces():
+    text = "\t     \t\n  \r  abc"
+    lexer = create_lexer(text)
+
+    assert lexer.stream.current_char == "\t"
+    lexer.skip_whitespaces()
+    assert lexer.stream.current_char == "a"
+    lexer.skip_whitespaces()
+    assert lexer.stream.current_char == "a"
+
+
+def test_try_build_operator_or_comment_fail():
+    text = "hello"
+    lexer = create_lexer(text)
+
+    assert lexer.stream.current_char == "h"
+    assert lexer.token is None
+    assert lexer.try_build_operator_or_comment() is False
+    assert lexer.stream.current_char == "h"
+    assert lexer.token is None
+
+
+def test_try_build_operator_or_comment_plus():
+    text = "+abcdef"
+    lexer = create_lexer(text)
+
+    assert lexer.stream.current_char == "+"
+    assert lexer.token is None
+    assert lexer.try_build_operator_or_comment() is True
+    assert lexer.stream.current_char == "a"
+    assert lexer.token is not None
+    assert lexer.token.type == TokenType.PLUS
+    assert lexer.token.value is None
+
+
+def test_try_build_operator_or_comment_slash():
+    text = "/abcdef"
+    lexer = create_lexer(text)
+
+    assert lexer.stream.current_char == "/"
+    assert lexer.token is None
+    assert lexer.try_build_operator_or_comment() is True
+    assert lexer.stream.current_char == "a"
+    assert lexer.token is not None
+    assert lexer.token.type == TokenType.SLASH
+    assert lexer.token.value is None
+
+
+def test_try_build_operator_or_comment_part_of_composite():
+    text = "=abcdef"
+    lexer = create_lexer(text)
+
+    assert lexer.stream.current_char == "="
+    assert lexer.token is None
+    assert lexer.try_build_operator_or_comment() is True
+    assert lexer.stream.current_char == "a"
+    assert lexer.token is not None
+    assert lexer.token.type == TokenType.EQUAL
+    assert lexer.token.value is None
+
+
+def test_try_build_operator_or_comment_part_of_composite_error():
+    text = "!abcdef"
+    lexer = create_lexer(text)
+
+    assert lexer.stream.current_char == "!"
+    assert lexer.token is None
+    assert lexer.try_build_operator_or_comment() is True
+    assert lexer.stream.current_char == "a"
+    assert lexer.token is None
+    assert len(lexer.error_handler.errors) == 1
+    assert lexer.error_handler.errors == [
+        LexerError("Unexpected character: !", Position(1, 1, 0))
+    ]
+
+
+def test_try_build_operator_or_comment_composite():
+    text = "<=abcdef"
+    lexer = create_lexer(text)
+
+    assert lexer.stream.current_char == "<"
+    assert lexer.token is None
+    assert lexer.try_build_operator_or_comment() is True
+    assert lexer.stream.current_char == "a"
+    assert lexer.token is not None
+    assert lexer.token.type == TokenType.LESS_EQUAL
+    assert lexer.token.value is None
+
+
+def test_try_build_operator_or_comment_comment():
+    text = '//ab"e\tf'
+    lexer = create_lexer(text)
+
+    assert lexer.stream.current_char == "/"
+    assert lexer.token is None
+    assert lexer.try_build_operator_or_comment() is True
+    assert lexer.stream.current_char == ""
+    assert lexer.token is not None
+    assert lexer.token.type == TokenType.COMMENT
+    assert lexer.token.value == 'ab"e\tf'
+
+
+def test_try_build_operator_or_comment_comment_with_newline():
+    text = '//ab"e\tf\nafter'
+    lexer = create_lexer(text)
+
+    assert lexer.stream.current_char == "/"
+    assert lexer.token is None
+    assert lexer.try_build_operator_or_comment() is True
+    assert lexer.stream.current_char == "\n"
+    assert lexer.token is not None
+    assert lexer.token.type == TokenType.COMMENT
+    assert lexer.token.value == 'ab"e\tf'
