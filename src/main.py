@@ -1,7 +1,7 @@
 from sys import argv
 
 from lexer.streams import FileStream, TextStream
-from lexer.scanner import Scanner, ScannerWithoutComments
+from lexer.lexers import Lexer, LexerWithoutComments
 from lexer.tokens import TokenType
 from error_handlers import ErrorHandler
 
@@ -12,24 +12,24 @@ def run_prompt() -> None:
         text_iterator = iter(text)
         stream = TextStream(text_iterator)
         error_handler = ErrorHandler()
-        scanner = Scanner(stream, error_handler)
-        filter = ScannerWithoutComments(scanner)
+        lexer = Lexer(stream, error_handler)
+        filter = LexerWithoutComments(lexer)
         token = filter.next_token()
         while (token and not token.type == TokenType.EOF) or not token:
             print(token)
-            token = scanner.next_token()
+            token = lexer.next_token()
 
 
 def run(path: str) -> None:
     with open(path, 'r') as f:
         stream = FileStream(f)
         error_handler = ErrorHandler()
-        scanner = Scanner(stream, error_handler)
-        scanner = ScannerWithoutComments(scanner)
-        token = scanner.next_token()
+        lexer = Lexer(stream, error_handler)
+        lexer = LexerWithoutComments(lexer)
+        token = lexer.next_token()
         while (token and not token.type == TokenType.EOF) or not token:
             print(token)
-            token = scanner.next_token()
+            token = lexer.next_token()
 
 
 if __name__ == "__main__":
