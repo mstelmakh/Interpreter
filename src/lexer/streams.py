@@ -8,11 +8,12 @@ class Position:
     line: int
     column: int
     offset: int
+    filename: str | None
 
 
 @dataclass
 class Stream(ABC):
-    position: Position = field(default_factory=lambda: Position(1, 0, 0))
+    position: Position = field(default_factory=lambda: Position(1, 0, 0, None))
     current_char: str = ''
 
     @abstractmethod
@@ -24,6 +25,7 @@ class FileStream(Stream):
     def __init__(self, file_handler: TextIO):
         super().__init__()
         self.file_handler = file_handler
+        self.position.filename = file_handler.name
 
     def advance(self) -> str:
         if self.current_char == "\n":
