@@ -46,11 +46,11 @@ class Lexer:
     def try_build_string(self) -> bool:
         if not self.stream.current_char == '"':
             return False
-        self.stream.current_char = self.stream.advance()
+        self.stream.advance()
         value = []
         while self.stream.current_char and not self.stream.current_char == '"':
             if self.stream.current_char == "\\":
-                self.stream.current_char = self.stream.advance()
+                self.stream.advance()
                 if self.stream.current_char == "n":
                     value.append("\n")
                 elif self.stream.current_char == "b":
@@ -70,36 +70,39 @@ class Lexer:
                     )
             else:
                 value.append(self.stream.current_char)
-            self.stream.current_char = self.stream.advance()
+            self.stream.advance()
         if not self.stream.current_char:
             self.error("Unterminated string.")
             return True
         if self.stream.current_char == '"':
-            self.stream.current_char = self.stream.advance()
+            self.stream.advance()
         self.token = self.create_token(TokenType.STRING, "".join(value))
         return True
 
     def try_build_number(self) -> bool:
+        # Allows leading zeros and float number without float part
+        # For example: 000015.5 = 15.5, 15. = 15.0
         if not is_digit(self.stream.current_char):
             return False
         integer = 0
         fraction = 0.0
         fraction_length = 0
+        is_float = False
         while is_digit(self.stream.current_char):
             integer = integer * 10 + int(self.stream.current_char)
-            self.stream.current_char = self.stream.advance()
-
+            self.stream.advance()
         if self.stream.current_char == '.':
-            self.stream.current_char = self.stream.advance()
+            is_float = True
+            self.stream.advance()
             while is_digit(self.stream.current_char):
                 fraction = fraction * 10 + int(self.stream.current_char)
                 fraction_length += 1
-                self.stream.current_char = self.stream.advance()
+                self.stream.advance()
         if fraction_length > 0:
             fraction = fraction / (10 ** fraction_length)
         self.token = self.create_token(
             TokenType.NUMBER,
-            integer + fraction
+            integer + fraction if is_float else integer
         )
         return True
 
@@ -109,7 +112,7 @@ class Lexer:
         value = []
         while is_alphanumeric(self.stream.current_char):
             value.append(self.stream.current_char)
-            self.stream.current_char = self.stream.advance()
+            self.stream.advance()
         value_str = "".join(value)
         if value_str in KEYWORDS_MAP:
             self.token = self.create_token(KEYWORDS_MAP[value_str])
@@ -124,7 +127,7 @@ class Lexer:
         value = []
         while self.stream.current_char and self.stream.current_char != "\n":
             value.append(self.stream.current_char)
-            self.stream.current_char = self.stream.advance()
+            self.stream.advance()
         return self.create_token(TokenType.COMMENT, "".join(value))
 
     def try_build_operator_or_comment(self) -> bool:
@@ -141,17 +144,17 @@ class Lexer:
                 SINGLE_CHAR_MAP[self.stream.current_char],
                 None
             )
-            self.stream.current_char = self.stream.advance()
+            self.stream.advance()
             return True
         previous = self.stream.current_char
-        self.stream.current_char = self.stream.advance()
+        self.stream.advance()
         lexeme = previous + self.stream.current_char
         if lexeme == COMMENT_CHAR:
-            self.stream.current_char = self.stream.advance()
+            self.stream.advance()
             self.token = self.build_comment()
         elif lexeme in COMPOSITE_CHAR_MAP:
             self.token = self.create_token(COMPOSITE_CHAR_MAP[lexeme])
-            self.stream.current_char = self.stream.advance()
+            self.stream.advance()
         elif previous in SINGLE_CHAR_MAP:
             # If the first character was the beginning of the composite
             # operator, but the second character didn't match.
@@ -172,7 +175,7 @@ class Lexer:
 
     def skip_whitespaces(self) -> None:
         while self.stream.current_char in INDENTATION_CHARS:
-            self.stream.current_char = self.stream.advance()
+            self.stream.advance()
 
     def next_token(self) -> Token | None:
         funcs = (
@@ -190,7 +193,7 @@ class Lexer:
 
         self.token = None
         self.error(f"Unexpected character: {self.stream.current_char}")
-        self.stream.current_char = self.stream.advance()
+        self.stream.advance()
         return None
 
     def create_token(
