@@ -9,8 +9,7 @@ from error_handlers import ErrorHandler
 def run_prompt() -> None:
     while True:
         text = input("> ")
-        text_iterator = iter(text)
-        stream = TextStream(text_iterator)
+        stream = TextStream(text)
         error_handler = ErrorHandler()
         lexer = Lexer(stream, error_handler)
         filter = LexerWithoutComments(lexer)
