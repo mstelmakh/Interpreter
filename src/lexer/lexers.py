@@ -10,15 +10,11 @@ from lexer.tokens import (
     COMMENT_CHAR
 )
 from lexer.utils import is_digit, is_alpha, is_alphanumeric
-from lexer.streams import Stream
+from lexer.streams import Stream, Position
 from error_handlers import BaseErrorHandler
 from lexer.exceptions import LexerError
 
 from abc import ABC, abstractmethod
-
-
-def print_error(line: int, column: int, message: str):
-    print(f"Error at {line}:{column}: {message}")
 
 
 class BaseLexer(ABC):
@@ -32,15 +28,18 @@ class Lexer:
     def __init__(self, stream: Stream, error_handler: BaseErrorHandler):
         self.stream = stream
         self.error_handler = error_handler
-        self.lexeme: str = ""
-        self.token: Token = None
+        self.lexeme = ""
+        self.token: Token | None = None
 
         self.stream.advance()
         self.start_position = copy(self.stream.position)
 
-    def error(self, message: str) -> None:
+    def error(self, message: str, position: Position | None = None) -> None:
         self.token = None
-        error = LexerError(message, self.start_position)
+        error = LexerError(
+            message,
+            self.start_position if not position else position
+        )
         self.error_handler.handle_lexer_error(error)
 
     def try_build_string(self) -> bool:
@@ -50,6 +49,7 @@ class Lexer:
         value = []
         while self.stream.current_char and not self.stream.current_char == '"':
             if self.stream.current_char == "\\":
+                position = copy(self.stream.position)
                 self.stream.advance()
                 if self.stream.current_char == "n":
                     value.append("\n")
@@ -65,8 +65,9 @@ class Lexer:
                     value.append("\"")
                 else:
                     self.error(
-                        "Invalid escape character:",
-                        "'\\{self.stream.current_char}'"
+                        "Invalid escape character: " +
+                        f"'\\{self.stream.current_char}'",
+                        position
                     )
             else:
                 value.append(self.stream.current_char)
