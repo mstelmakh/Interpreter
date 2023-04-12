@@ -28,7 +28,6 @@ class Lexer(BaseLexer):
     def __init__(self, stream: Stream, error_handler: BaseErrorHandler):
         self.stream = stream
         self.error_handler = error_handler
-        self.lexeme = ""
         self.token: Token | None = None
 
         self.stream.advance()
@@ -192,7 +191,6 @@ class Lexer(BaseLexer):
             if func():
                 return self.token
 
-        self.token = None
         self.error(f"Unexpected character: {self.stream.current_char}")
         self.stream.advance()
         return None
