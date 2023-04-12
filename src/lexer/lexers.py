@@ -24,7 +24,7 @@ class BaseLexer(ABC):
         ...
 
 
-class Lexer:
+class Lexer(BaseLexer):
     def __init__(self, stream: Stream, error_handler: BaseErrorHandler):
         self.stream = stream
         self.error_handler = error_handler
