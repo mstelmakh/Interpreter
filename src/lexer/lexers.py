@@ -50,6 +50,9 @@ class Lexer(BaseLexer):
             if self.stream.current_char == "\\":
                 position = copy(self.stream.position)
                 self.stream.advance()
+                if self.stream.current_char == "":
+                    self.error("Unterminated string.")
+                    return True
                 if self.stream.current_char == "n":
                     value.append("\n")
                 elif self.stream.current_char == "b":
@@ -131,6 +134,7 @@ class Lexer(BaseLexer):
         return self.create_token(TokenType.COMMENT, "".join(value))
 
     def try_build_operator_or_comment(self) -> bool:
+        # TODO
         is_beginning_of_composite = (
             self.stream.current_char
             in [string[0] for string in COMPOSITE_CHAR_MAP.keys()]
@@ -141,8 +145,7 @@ class Lexer(BaseLexer):
             return False
         if not (is_beginning_of_composite or is_beginning_of_comment):
             self.token = self.create_token(
-                SINGLE_CHAR_MAP[self.stream.current_char],
-                None
+                SINGLE_CHAR_MAP[self.stream.current_char]
             )
             self.stream.advance()
             return True
@@ -188,6 +191,7 @@ class Lexer(BaseLexer):
         self.skip_whitespaces()
         self.start_position = copy(self.stream.position)
         for func in funcs:
+            # token = func()
             if func():
                 return self.token
 
