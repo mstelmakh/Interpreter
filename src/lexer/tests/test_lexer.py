@@ -1,9 +1,15 @@
 import pytest
 from sys import maxsize
 
-from lexer.lexers import Lexer
+from lexer.lexers import Lexer, LexerWithoutComments
 from lexer.streams import TextStream, Position
-from lexer.tokens import Token, TokenType, COMPOSITE_CHAR_MAP, SINGLE_CHAR_MAP
+from lexer.tokens import (
+    Token,
+    TokenType,
+    COMPOSITE_CHAR_MAP,
+    SINGLE_CHAR_MAP,
+    KEYWORDS_MAP
+)
 from lexer.exceptions import LexerError
 from lexer.tests.utils import get_all_tokens, DebugErrorHandler, create_lexer
 
@@ -254,56 +260,147 @@ def test_try_build_number_float(text: str):
     assert lexer.token.value == float(text)
 
 
-def test_try_build_ident_or_keyword_fail():
-    pass
+@pytest.mark.parametrize('text', (
+        ' while', '=while', '//while', '5while',
+        '"while"', '"string"while', '\nwhile'
+        )
+)
+def test_try_build_ident_or_keyword_fail(text):
+    lexer = create_lexer(text)
+
+    assert lexer.try_build_ident_or_keyword() is False
+    assert lexer.stream.current_char == text[0]
+    assert lexer.token is None
 
 
-def test_try_build_ident_or_keyword_ident():
-    pass
+@pytest.mark.parametrize('identifier', (
+        "variable", "orchid", "String", "_String",
+        "_St__53_63_ring___1"
+))
+def test_try_build_ident_or_keyword_ident(identifier: str):
+    text = identifier + "=100"
+    lexer = create_lexer(text)
+
+    assert lexer.try_build_ident_or_keyword() is True
+    assert lexer.stream.current_char == "="
+    assert lexer.token is not None
+    assert lexer.token.type == TokenType.IDENTIFIER
+    assert lexer.token.value == identifier
 
 
-def test_try_build_ident_or_keyword_keyword():
-    pass
+@pytest.mark.parametrize('keyword, keyword_type', KEYWORDS_MAP.items())
+def test_try_build_ident_or_keyword_keyword(
+    keyword: str,
+    keyword_type: TokenType
+):
+    text = keyword + "=100"
+    lexer = create_lexer(text)
+
+    assert lexer.try_build_ident_or_keyword() is True
+    assert lexer.stream.current_char == "="
+    assert lexer.token is not None
+    assert lexer.token.type == keyword_type
+    assert lexer.token.value is None
 
 
-def test_try_build_eof_fail():
-    pass
+@pytest.mark.parametrize('text', (
+        ' ', '=', '//', '5',
+        '"str"', '\n', 'if'
+    )
+)
+def test_try_build_eof_fail(text):
+    lexer = create_lexer(text)
+
+    assert lexer.try_build_eof() is False
+    assert lexer.stream.current_char == text[0]
+    assert lexer.token is None
 
 
 def test_try_build_eof():
-    pass
+    text = 'a'
+    lexer = create_lexer(text)
+    lexer.stream.advance()
+    assert lexer.try_build_eof() is True
+    assert lexer.stream.current_char == ''
+    assert lexer.token is not None
+    assert lexer.token.type == TokenType.EOF
+    assert lexer.token.value is None
 
 
-def test_get_next_token():
-    pass
+@pytest.mark.parametrize('text, expected_token', (
+    ('+ 55;', (
+        Token(TokenType.PLUS, None, Position(1, 1, 0))
+    )),
+    ('// comment1', (
+        Token(TokenType.COMMENT, ' comment1', Position(1, 1, 0))
+    )),
+    ('"string"=="a"', (
+        Token(TokenType.STRING, "string", Position(1, 1, 0))
+    )),
+    ('005.156001+\n', (
+        Token(TokenType.NUMBER, 5.156001, Position(1, 1, 0))
+    )),
+    ('variable%', (
+        Token(TokenType.IDENTIFIER, 'variable', Position(1, 1, 0))
+    )),
+    ('var a = 5;', (
+        Token(TokenType.VAR, None, Position(1, 1, 0))
+    )),
+    ('', (
+        Token(TokenType.EOF, None, Position(1, 1, 0))
+    )),
+))
+def test_get_next_token(text: str, expected_token: Token):
+    lexer = create_lexer(text)
+
+    assert lexer.next_token() is not None
+    assert lexer.token is not None
+    assert lexer.token == expected_token
 
 
-def test_comment_filter_get_next_token():
-    pass
+@pytest.mark.parametrize('text, expected_token', (
+    ('+ 55 // comment;', (
+        Token(TokenType.PLUS, None, Position(1, 1, 0))
+    )),
+    ('// comment1 \n var', (
+        Token(TokenType.VAR, None, Position(2, 2, 14))
+    )),
+    ('// "string1" \n // "string2" \n "string3"', (
+        Token(TokenType.STRING, "string3", Position(3, 2, 30))
+    ))
+))
+def test_comment_filter_get_next_token(text: str, expected_token: Token):
+    lexer = create_lexer(text)
+    filter = LexerWithoutComments(lexer)
+
+    assert filter.next_token() is not None
+    assert filter.token is not None
+    assert filter.token == expected_token
 
 
 TEST_TEXT_TOKENS_MAP = [
     (
-        "var a = 5; !\n"
-        "const !b = a / 10;",
+        "€var a = 5; !\n"
+        "const ^b = a / 10;",
         [
-            Token(TokenType.VAR, None, Position(1, 1, 0)),
-            Token(TokenType.IDENTIFIER, "a", Position(1, 5, 4)),
-            Token(TokenType.EQUAL, None, Position(1, 7, 6)),
-            Token(TokenType.NUMBER, 5, Position(1, 9, 8)),
-            Token(TokenType.SEMICOLON, None, Position(1, 10, 9)),
-            Token(TokenType.CONST, None, Position(2, 1, 13)),
-            Token(TokenType.IDENTIFIER, "b", Position(2, 8, 20)),
-            Token(TokenType.EQUAL, None, Position(2, 10, 22)),
-            Token(TokenType.IDENTIFIER, "a", Position(2, 12, 24)),
-            Token(TokenType.SLASH, None, Position(2, 14, 26)),
-            Token(TokenType.NUMBER, 10, Position(2, 16, 28)),
-            Token(TokenType.SEMICOLON, None, Position(2, 18, 30)),
-            Token(TokenType.EOF, None, Position(2, 19, 31))
+            Token(TokenType.VAR, None, Position(1, 2, 3)),
+            Token(TokenType.IDENTIFIER, "a", Position(1, 6, 7)),
+            Token(TokenType.EQUAL, None, Position(1, 8, 9)),
+            Token(TokenType.NUMBER, 5, Position(1, 10, 11)),
+            Token(TokenType.SEMICOLON, None, Position(1, 11, 12)),
+            Token(TokenType.CONST, None, Position(2, 1, 16)),
+            Token(TokenType.IDENTIFIER, "b", Position(2, 8, 23)),
+            Token(TokenType.EQUAL, None, Position(2, 10, 25)),
+            Token(TokenType.IDENTIFIER, "a", Position(2, 12, 27)),
+            Token(TokenType.SLASH, None, Position(2, 14, 29)),
+            Token(TokenType.NUMBER, 10, Position(2, 16, 31)),
+            Token(TokenType.SEMICOLON, None, Position(2, 18, 33)),
+            Token(TokenType.EOF, None, Position(2, 19, 34))
         ],
         [
-            LexerError("Unexpected character: !", Position(1, 12, 11)),
-            LexerError("Unexpected character: !", Position(2, 7, 19)),
+            LexerError("Unexpected character: €", Position(1, 1, 0)),
+            LexerError("Unexpected character: !", Position(1, 13, 14)),
+            LexerError("Unexpected character: ^", Position(2, 7, 22)),
         ]
     ),
 ]
