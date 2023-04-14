@@ -11,7 +11,6 @@ from lexer.tokens import (
     KEYWORDS_MAP
 )
 from lexer.exceptions import (
-    LexerError,
     UnexpecterCharacterError,
     UnterminatedStringError,
     InvalidEscapeSequenceError
@@ -108,7 +107,7 @@ def test_try_build_operator_or_comment_part_of_composite_error():
     with pytest.raises(UnexpecterCharacterError) as e:
         lexer.try_build_operator_or_comment()
 
-    assert str(e.value) == "Unexpected character: !"
+    assert str(e.value) == "Unexpected character: `!`"
     assert e.value.position == Position(1, 1, 0)
 
 
@@ -374,59 +373,151 @@ def test_get_next_token(
     assert token.value == value
 
 
-# @pytest.mark.parametrize('text, expected_token', (
-#     ('+ 55 // comment;', (
-#         Token(TokenType.PLUS, None, Position(1, 1, 0))
-#     )),
-#     ('// comment1 \n var', (
-#         Token(TokenType.VAR, None, Position(2, 2, 14))
-#     )),
-#     ('// "string1" \n // "string2" \n "string3"', (
-#         Token(TokenType.STRING, "string3", Position(3, 2, 30))
-#     ))
-# ))
-# def test_comment_filter_get_next_token(text: str, expected_token: Token):
-#     lexer = create_lexer(text)
-#     filter = LexerWithoutComments(lexer)
+@pytest.mark.parametrize('character', (
+        '%', '$', '@', '!', '#', ']', '[', '&', "'", '`', '~',
+        'ą', 'ę', 'ó', 'ł', 'ż', 'ź', 'ć',
+))
+def test_get_next_token_unexpecter_char_error(
+    character: str
+):
+    lexer = create_lexer(character)
 
-#     assert filter.next_token() is not None
-#     assert filter.token is not None
-#     assert filter.token == expected_token
+    with pytest.raises(UnexpecterCharacterError) as e:
+        lexer.next_token()
+
+    assert e.value.position == Position(1, 1, 0)
+    assert str(e.value) == f"Unexpected character: `{character}`"
 
 
-# TEST_TEXT_TOKENS_MAP = [
-#     (
-#         "€var a = 5; !\n"
-#         "const ^b = a / 10;",
-#         [
-#             Token(TokenType.VAR, None, Position(1, 2, 3)),
-#             Token(TokenType.IDENTIFIER, "a", Position(1, 6, 7)),
-#             Token(TokenType.EQUAL, None, Position(1, 8, 9)),
-#             Token(TokenType.NUMBER, 5, Position(1, 10, 11)),
-#             Token(TokenType.SEMICOLON, None, Position(1, 11, 12)),
-#             Token(TokenType.CONST, None, Position(2, 1, 16)),
-#             Token(TokenType.IDENTIFIER, "b", Position(2, 8, 23)),
-#             Token(TokenType.EQUAL, None, Position(2, 10, 25)),
-#             Token(TokenType.IDENTIFIER, "a", Position(2, 12, 27)),
-#             Token(TokenType.SLASH, None, Position(2, 14, 29)),
-#             Token(TokenType.NUMBER, 10, Position(2, 16, 31)),
-#             Token(TokenType.SEMICOLON, None, Position(2, 18, 33)),
-#             Token(TokenType.EOF, None, Position(2, 19, 34))
-#         ],
-#         [
-#             LexerError("Unexpected character: €", Position(1, 1, 0)),
-#             LexerError("Unexpected character: !", Position(1, 13, 14)),
-#             LexerError("Unexpected character: ^", Position(2, 7, 22)),
-#         ]
-#     ),
-# ]
+@pytest.mark.parametrize('string_value', (
+        'string', 'str\\ning', '\\"\\nłć$\\n', 'string\\'
+))
+def test_get_next_token_unterminated_string_error(
+    string_value: str
+):
+    lexer = create_lexer('"' + string_value)
+
+    with pytest.raises(UnterminatedStringError) as e:
+        lexer.next_token()
+
+    assert e.value.position == Position(1, 1, 0)
+    assert str(e.value) == 'Unterminated string'
 
 
-# @pytest.mark.parametrize("text, tokens, errors", TEST_TEXT_TOKENS_MAP)
-# def test_lexer(text: str, tokens: list[Token], errors: list[LexerError]):
-#     stream = TextStream(text)
-#     error_handler = DebugErrorHandler()
-#     lexer = Lexer(stream, error_handler)
+@pytest.mark.parametrize('sequence', (
+        '\\$', '\\#', '\\a', '\\g', "\\'"
+))
+def test_get_next_token_invalid_escape_sequence_error(
+    sequence: str
+):
+    lexer = create_lexer('"pre' + sequence + 'post"')
 
-#     assert get_all_tokens(lexer) == tokens
-#     assert error_handler.errors == errors
+    with pytest.raises(InvalidEscapeSequenceError) as e:
+        lexer.next_token()
+
+    assert e.value.position == Position(1, 5, 4)
+    assert str(e.value) == f"Invalid escape character: '{sequence}'"
+
+
+@pytest.mark.parametrize('text, token_type, value', tuple(
+        (k, v, None) for k, v in
+        (SINGLE_CHAR_MAP | COMPOSITE_CHAR_MAP | KEYWORDS_MAP).items()
+    ) + (
+        ('"string"', TokenType.STRING, "string"),
+        ('00156.', TokenType.NUMBER, 156.0),
+        ('variable', TokenType.IDENTIFIER, "variable"),
+        ('', TokenType.EOF, None),
+        ('// comment1 \n var', TokenType.VAR, None),
+        (
+            '// "string1" \n // "string2" \n "string3"',
+            TokenType.STRING,
+            "string3"
+        )
+    )
+)
+def test_comment_filter_get_next_token(
+    text: str,
+    token_type: TokenType,
+    value: int | float | str | None
+):
+    lexer = create_lexer(text)
+    filter = LexerWithoutComments(lexer)
+
+    token = filter.next_token()
+
+    assert token is not None
+    assert token.type == token_type
+    assert token.value == value
+
+
+TEST_TEXT_TOKENS_MAP = [
+    (
+        "var a = 5;  \n"
+        "const b = a / 10;",
+        [
+            Token(TokenType.VAR, None, Position(1, 1, 0)),
+            Token(TokenType.IDENTIFIER, "a", Position(1, 5, 4)),
+            Token(TokenType.EQUAL, None, Position(1, 7, 6)),
+            Token(TokenType.NUMBER, 5, Position(1, 9, 8)),
+            Token(TokenType.SEMICOLON, None, Position(1, 10, 9)),
+            Token(TokenType.CONST, None, Position(2, 1, 13)),
+            Token(TokenType.IDENTIFIER, "b", Position(2, 7, 19)),
+            Token(TokenType.EQUAL, None, Position(2, 9, 21)),
+            Token(TokenType.IDENTIFIER, "a", Position(2, 11, 23)),
+            Token(TokenType.SLASH, None, Position(2, 13, 25)),
+            Token(TokenType.NUMBER, 10, Position(2, 15, 27)),
+            Token(TokenType.SEMICOLON, None, Position(2, 17, 29)),
+            Token(TokenType.EOF, None, Position(2, 18, 30))
+        ],
+    ),
+    (
+        'match ("John") {\n'
+        '   (Str as name) if someFunction(name): print("Hello" + name);\n'
+        '   (_): print("Hello!");\n'
+        '}',
+        [
+            Token(TokenType.MATCH, None, Position(1, 1, 0)),
+            Token(TokenType.LEFT_PAREN, None, Position(1, 7, 6)),
+            Token(TokenType.STRING, "John", Position(1, 8, 7)),
+            Token(TokenType.RIGHT_PAREN, None, Position(1, 14, 13)),
+            Token(TokenType.LEFT_BRACE, None, Position(1, 16, 15)),
+            Token(TokenType.LEFT_PAREN, None, Position(2, 4, 20)),
+            Token(TokenType.STRING_TYPE, None, Position(2, 5, 21)),
+            Token(TokenType.AS, None, Position(2, 9, 25)),
+            Token(TokenType.IDENTIFIER, "name", Position(2, 12, 28)),
+            Token(TokenType.RIGHT_PAREN, None, Position(2, 16, 32)),
+            Token(TokenType.IF, None, Position(2, 18, 34)),
+            Token(TokenType.IDENTIFIER, "someFunction", Position(2, 21, 37)),
+            Token(TokenType.LEFT_PAREN, None, Position(2, 33, 49)),
+            Token(TokenType.IDENTIFIER, "name", Position(2, 34, 50)),
+            Token(TokenType.RIGHT_PAREN, None, Position(2, 38, 54)),
+            Token(TokenType.COLON, None, Position(2, 39, 55)),
+            Token(TokenType.IDENTIFIER, "print", Position(2, 41, 57)),
+            Token(TokenType.LEFT_PAREN, None, Position(2, 46, 62)),
+            Token(TokenType.STRING, "Hello", Position(2, 47, 63)),
+            Token(TokenType.PLUS, None, Position(2, 55, 71)),
+            Token(TokenType.IDENTIFIER, "name", Position(2, 57, 73)),
+            Token(TokenType.RIGHT_PAREN, None, Position(2, 61, 77)),
+            Token(TokenType.SEMICOLON, None, Position(2, 62, 78)),
+            Token(TokenType.LEFT_PAREN, None, Position(3, 4, 83)),
+            Token(TokenType.IDENTIFIER, "_", Position(3, 5, 84)),
+            Token(TokenType.RIGHT_PAREN, None, Position(3, 6, 85)),
+            Token(TokenType.COLON, None, Position(3, 7, 86)),
+            Token(TokenType.IDENTIFIER, "print", Position(3, 9, 88)),
+            Token(TokenType.LEFT_PAREN, None, Position(3, 14, 93)),
+            Token(TokenType.STRING, "Hello!", Position(3, 15, 94)),
+            Token(TokenType.RIGHT_PAREN, None, Position(3, 23, 102)),
+            Token(TokenType.SEMICOLON, None, Position(3, 24, 103)),
+            Token(TokenType.RIGHT_BRACE, None, Position(4, 1, 105)),
+            Token(TokenType.EOF, None, Position(4, 2, 106)),
+        ]
+    )
+]
+
+
+@pytest.mark.parametrize("text, tokens", TEST_TEXT_TOKENS_MAP)
+def test_lexer(text: str, tokens: list[Token]):
+    stream = TextStream(text)
+    lexer = Lexer(stream)
+
+    assert get_all_tokens(lexer) == tokens
