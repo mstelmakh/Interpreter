@@ -523,10 +523,10 @@ match ("John", 10) {
 ```
 match (x, y) {
     (Num and >0, Num and >0 ): print("first");
-    (Num and <0, Num and >0): print("second);
+    (Num and <0, Num and >0): print("second");
     (Num and <0, Num and <0): print("third");
     (Num and >0, Num and <0): print("fourth");
-    (Num and ==0, Num): print("on Y");                                // Not the same as (==0, Num) pattern
+    (Num and 0, Num): print("on Y");                                // Not the same as (0, Num) pattern
     (Num, Num): print("on X");
     (_ as x, _ as y): print("Invalid coords: " + x + ", " + y);
 }
