@@ -1,19 +1,9 @@
 from lexer.lexers import Lexer
-from lexer.tokens import TokenType
-from lexer.exceptions import LexerError
+from lexer.tokens import Token, TokenType, SINGLE_CHAR_MAP, COMPOSITE_CHAR_MAP
 from lexer.streams import TextStream
-from error_handlers import BaseErrorHandler
 
 
-class DebugErrorHandler(BaseErrorHandler):
-    def __init__(self) -> None:
-        self.errors: list[LexerError] = []
-
-    def handle_lexer_error(self, exception: LexerError):
-        self.errors.append(exception)
-
-
-def get_all_tokens(lexer: Lexer):
+def get_all_tokens(lexer: Lexer) -> Token:
     result = []
     token = lexer.next_token()
     while True:
@@ -27,5 +17,16 @@ def get_all_tokens(lexer: Lexer):
 
 def create_lexer(text: str) -> Lexer:
     stream = TextStream(text)
-    error_handler = DebugErrorHandler()
-    return Lexer(stream, error_handler)
+    return Lexer(stream)
+
+
+def get_single_char_operators_beginning_of_composite(
+) -> list[tuple[str, TokenType]]:
+    """Returns all the single char operators that
+    are also a beginning of a composite char operators."""
+    result = []
+    for composite in COMPOSITE_CHAR_MAP.keys():
+        if composite[0] in SINGLE_CHAR_MAP:
+            result.append((composite[0], SINGLE_CHAR_MAP[composite[0]]))
+            continue
+    return result

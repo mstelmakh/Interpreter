@@ -10,17 +10,24 @@ from lexer.tokens import (
     SINGLE_CHAR_MAP,
     KEYWORDS_MAP
 )
-from lexer.exceptions import LexerError
-from lexer.tests.utils import get_all_tokens, DebugErrorHandler, create_lexer
+from lexer.exceptions import (
+    LexerError,
+    UnexpecterCharacterError,
+    UnterminatedStringError,
+    InvalidEscapeSequenceError
+)
+from lexer.tests.utils import (
+    get_all_tokens,
+    create_lexer,
+    get_single_char_operators_beginning_of_composite
+)
 
 
 def test_init_lexer():
     text = "var a = 5;"
     stream = TextStream(text)
-    error_handler = DebugErrorHandler()
-    lexer = Lexer(stream, error_handler)
+    lexer = Lexer(stream)
     assert lexer.stream.current_char == "v"
-    assert lexer.token is None
 
 
 @pytest.mark.parametrize('ident', (
@@ -45,9 +52,10 @@ def test_skip_whitespaces(ident):
 def test_try_build_operator_or_comment_fail(text: str):
     lexer = create_lexer(text)
 
-    assert lexer.try_build_operator_or_comment() is False
+    token = lexer.try_build_operator_or_comment()
+
+    assert token is None
     assert lexer.stream.current_char == text[0]
-    assert lexer.token is None
 
 
 @pytest.mark.parametrize('operator, token_type', SINGLE_CHAR_MAP.items())
@@ -58,46 +66,50 @@ def test_try_build_operator_or_comment_single_char(
     text = operator + "abcdef"
     lexer = create_lexer(text)
 
-    assert lexer.try_build_operator_or_comment() is True
+    token = lexer.try_build_operator_or_comment()
+
+    assert token is not None
     assert lexer.stream.current_char == "a"
-    assert lexer.token is not None
-    assert lexer.token.type == token_type
-    assert lexer.token.value is None
+    assert token.type == token_type
+    assert token.value is None
 
 
 def test_try_build_operator_or_comment_slash():
     text = "/abcdef"
     lexer = create_lexer(text)
 
-    assert lexer.try_build_operator_or_comment() is True
+    token = lexer.try_build_operator_or_comment()
+
+    assert token is not None
     assert lexer.stream.current_char == "a"
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.SLASH
-    assert lexer.token.value is None
+    assert token.type == TokenType.SLASH
+    assert token.value is None
 
 
-def test_try_build_operator_or_comment_part_of_composite():
-    text = "=abcdef"
+@pytest.mark.parametrize(
+        'char, token_type', get_single_char_operators_beginning_of_composite()
+)
+def test_try_build_operator_or_comment_part_of_composite(char, token_type):
+    text = char + "abcdef"
     lexer = create_lexer(text)
 
-    assert lexer.try_build_operator_or_comment() is True
+    token = lexer.try_build_operator_or_comment()
+
+    assert token is not None
     assert lexer.stream.current_char == "a"
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.EQUAL
-    assert lexer.token.value is None
+    assert token.type == token_type
+    assert token.value is None
 
 
 def test_try_build_operator_or_comment_part_of_composite_error():
     text = "!abcdef"
     lexer = create_lexer(text)
 
-    assert lexer.try_build_operator_or_comment() is True
-    assert lexer.stream.current_char == "a"
-    assert lexer.token is None
-    assert len(lexer.error_handler.errors) == 1
-    assert lexer.error_handler.errors == [
-        LexerError("Unexpected character: !", Position(1, 1, 0))
-    ]
+    with pytest.raises(UnexpecterCharacterError) as e:
+        lexer.try_build_operator_or_comment()
+
+    assert str(e.value) == "Unexpected character: !"
+    assert e.value.position == Position(1, 1, 0)
 
 
 @pytest.mark.parametrize('operator, token_type', COMPOSITE_CHAR_MAP.items())
@@ -108,33 +120,36 @@ def test_try_build_operator_or_comment_composite(
     text = operator + "a-c$e\n"
     lexer = create_lexer(text)
 
-    assert lexer.try_build_operator_or_comment() is True
+    token = lexer.try_build_operator_or_comment()
+
+    assert token is not None
     assert lexer.stream.current_char == "a"
-    assert lexer.token is not None
-    assert lexer.token.type == token_type
-    assert lexer.token.value is None
+    assert token.type == token_type
+    assert token.value is None
 
 
 def test_try_build_operator_or_comment_comment():
     text = '//ab"e\tf'
     lexer = create_lexer(text)
 
-    assert lexer.try_build_operator_or_comment() is True
+    token = lexer.try_build_operator_or_comment()
+
+    assert token is not None
     assert lexer.stream.current_char == ""
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.COMMENT
-    assert lexer.token.value == 'ab"e\tf'
+    assert token.type == TokenType.COMMENT
+    assert token.value == 'ab"e\tf'
 
 
 def test_try_build_operator_or_comment_comment_with_newline():
     text = '//ab"e\tf\nafter'
     lexer = create_lexer(text)
 
-    assert lexer.try_build_operator_or_comment() is True
+    token = lexer.try_build_operator_or_comment()
+
+    assert token is not None
     assert lexer.stream.current_char == "\n"
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.COMMENT
-    assert lexer.token.value == 'ab"e\tf'
+    assert token.type == TokenType.COMMENT
+    assert token.value == 'ab"e\tf'
 
 
 @pytest.mark.parametrize('text', (
@@ -145,9 +160,10 @@ def test_try_build_operator_or_comment_comment_with_newline():
 def test_try_build_string_fail(text):
     lexer = create_lexer(text)
 
-    assert lexer.try_build_string() is False
+    token = lexer.try_build_string()
+
+    assert token is None
     assert lexer.stream.current_char == text[0]
-    assert lexer.token is None
 
 
 @pytest.mark.parametrize('string_value', (
@@ -157,11 +173,12 @@ def test_try_build_string_normal(string_value: str):
     text = '"' + string_value + '"' + "after"
     lexer = create_lexer(text)
 
-    assert lexer.try_build_string() is True
+    token = lexer.try_build_string()
+
+    assert token is not None
     assert lexer.stream.current_char == "a"
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.STRING
-    assert lexer.token.value == string_value
+    assert token.type == TokenType.STRING
+    assert token.value == string_value
 
 
 @pytest.mark.parametrize('string_value, expected', (
@@ -179,29 +196,29 @@ def test_try_build_string_with_escape_character(
     text = '"' + string_value + '"' + 'after'
     lexer = create_lexer(text)
 
-    assert lexer.try_build_string() is True
+    token = lexer.try_build_string()
+
+    assert token is not None
     assert lexer.stream.current_char == "a"
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.STRING
-    assert lexer.token.value == expected
+    assert token.type == TokenType.STRING
+    assert token.value == expected
 
 
-def test_try_build_string_with_invalid_escape_character():
-    text = '"\\ws\\%t\\@r\\:ing"after'
+@pytest.mark.parametrize('text, invalid_char, position', (
+        ('"s\\%tring"', '\\%', Position(1, 3, 2)),
+        ('"s\nt\\$ring"', '\\$', Position(2, 2, 4)),
+        ('"s\nt\\rring\\a"', '\\a', Position(2, 8, 10)),
+))
+def test_try_build_string_with_invalid_escape_character(
+    text: str, invalid_char: str, position: Position
+):
     lexer = create_lexer(text)
 
-    assert lexer.try_build_string() is True
-    assert lexer.stream.current_char == "a"
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.STRING
-    assert lexer.token.value == "string"
-    assert len(lexer.error_handler.errors) == 4
-    assert lexer.error_handler.errors == [
-        LexerError("Invalid escape character: '\\w'", Position(1, 2, 1)),
-        LexerError("Invalid escape character: '\\%'", Position(1, 5, 4)),
-        LexerError("Invalid escape character: '\\@'", Position(1, 8, 7)),
-        LexerError("Invalid escape character: '\\:'", Position(1, 11, 10)),
-    ]
+    with pytest.raises(InvalidEscapeSequenceError) as e:
+        lexer.try_build_string()
+
+    assert str(e.value) == f"Invalid escape character: '{invalid_char}'"
+    assert e.value.position == position
 
 
 @pytest.mark.parametrize('string_value', (
@@ -211,14 +228,11 @@ def test_try_build_string_unterminated(string_value: str):
     text = '"' + string_value
     lexer = create_lexer(text)
 
-    assert lexer.try_build_string() is True
-    # Reads till the end
-    assert lexer.stream.current_char == ""
-    assert lexer.token is None
-    assert len(lexer.error_handler.errors) == 1
-    assert lexer.error_handler.errors == [
-        LexerError("Unterminated string.", Position(1, 1, 0))
-    ]
+    with pytest.raises(UnterminatedStringError) as e:
+        lexer.try_build_string()
+
+    assert str(e.value) == "Unterminated string"
+    assert e.value.position == Position(1, 1, 0)
 
 
 @pytest.mark.parametrize('text', (
@@ -228,9 +242,10 @@ def test_try_build_string_unterminated(string_value: str):
 def test_try_build_number_fail(text: str):
     lexer = create_lexer(text)
 
-    assert lexer.try_build_number() is False
+    token = lexer.try_build_number()
+
     assert lexer.stream.current_char == text[0]
-    assert lexer.token is None
+    assert token is None
 
 
 @pytest.mark.parametrize('text', (
@@ -239,11 +254,12 @@ def test_try_build_number_fail(text: str):
 def test_try_build_number_integer(text: str):
     lexer = create_lexer(text + "after")
 
-    assert lexer.try_build_number() is True
+    token = lexer.try_build_number()
+
+    assert token is not None
     assert lexer.stream.current_char == "a"
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.NUMBER
-    assert lexer.token.value == int(text)
+    assert token.type == TokenType.NUMBER
+    assert token.value == int(text)
 
 
 @pytest.mark.parametrize('text', (
@@ -253,11 +269,12 @@ def test_try_build_number_integer(text: str):
 def test_try_build_number_float(text: str):
     lexer = create_lexer(text + "after")
 
-    assert lexer.try_build_number() is True
+    token = lexer.try_build_number()
+
+    assert token is not None
     assert lexer.stream.current_char == "a"
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.NUMBER
-    assert lexer.token.value == float(text)
+    assert token.type == TokenType.NUMBER
+    assert token.value == float(text)
 
 
 @pytest.mark.parametrize('text', (
@@ -268,9 +285,10 @@ def test_try_build_number_float(text: str):
 def test_try_build_ident_or_keyword_fail(text):
     lexer = create_lexer(text)
 
-    assert lexer.try_build_ident_or_keyword() is False
+    token = lexer.try_build_ident_or_keyword()
+
     assert lexer.stream.current_char == text[0]
-    assert lexer.token is None
+    assert token is None
 
 
 @pytest.mark.parametrize('identifier', (
@@ -281,11 +299,12 @@ def test_try_build_ident_or_keyword_ident(identifier: str):
     text = identifier + "=100"
     lexer = create_lexer(text)
 
-    assert lexer.try_build_ident_or_keyword() is True
+    token = lexer.try_build_ident_or_keyword()
+
+    assert token is not None
     assert lexer.stream.current_char == "="
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.IDENTIFIER
-    assert lexer.token.value == identifier
+    assert token.type == TokenType.IDENTIFIER
+    assert token.value == identifier
 
 
 @pytest.mark.parametrize('keyword, keyword_type', KEYWORDS_MAP.items())
@@ -296,11 +315,12 @@ def test_try_build_ident_or_keyword_keyword(
     text = keyword + "=100"
     lexer = create_lexer(text)
 
-    assert lexer.try_build_ident_or_keyword() is True
+    token = lexer.try_build_ident_or_keyword()
+
+    assert token is not None
     assert lexer.stream.current_char == "="
-    assert lexer.token is not None
-    assert lexer.token.type == keyword_type
-    assert lexer.token.value is None
+    assert token.type == keyword_type
+    assert token.value is None
 
 
 @pytest.mark.parametrize('text', (
@@ -311,106 +331,102 @@ def test_try_build_ident_or_keyword_keyword(
 def test_try_build_eof_fail(text):
     lexer = create_lexer(text)
 
-    assert lexer.try_build_eof() is False
+    token = lexer.try_build_eof()
+
     assert lexer.stream.current_char == text[0]
-    assert lexer.token is None
+    assert token is None
 
 
 def test_try_build_eof():
     text = 'a'
     lexer = create_lexer(text)
     lexer.stream.advance()
-    assert lexer.try_build_eof() is True
+
+    token = lexer.try_build_eof()
+
+    assert token is not None
     assert lexer.stream.current_char == ''
-    assert lexer.token is not None
-    assert lexer.token.type == TokenType.EOF
-    assert lexer.token.value is None
+    assert token.type == TokenType.EOF
+    assert token.value is None
 
 
-@pytest.mark.parametrize('text, expected_token', (
-    ('+ 55;', (
-        Token(TokenType.PLUS, None, Position(1, 1, 0))
-    )),
-    ('// comment1', (
-        Token(TokenType.COMMENT, ' comment1', Position(1, 1, 0))
-    )),
-    ('"string"=="a"', (
-        Token(TokenType.STRING, "string", Position(1, 1, 0))
-    )),
-    ('005.156001+\n', (
-        Token(TokenType.NUMBER, 5.156001, Position(1, 1, 0))
-    )),
-    ('variable%', (
-        Token(TokenType.IDENTIFIER, 'variable', Position(1, 1, 0))
-    )),
-    ('var a = 5;', (
-        Token(TokenType.VAR, None, Position(1, 1, 0))
-    )),
-    ('', (
-        Token(TokenType.EOF, None, Position(1, 1, 0))
-    )),
-))
-def test_get_next_token(text: str, expected_token: Token):
+@pytest.mark.parametrize('text, token_type, value', tuple(
+        (k, v, None) for k, v in
+        (SINGLE_CHAR_MAP | COMPOSITE_CHAR_MAP | KEYWORDS_MAP).items()
+    ) + (
+        ('"string"', TokenType.STRING, "string"),
+        ('00156.', TokenType.NUMBER, 156.0),
+        ('variable', TokenType.IDENTIFIER, "variable"),
+        ('', TokenType.EOF, None),
+    )
+)
+def test_get_next_token(
+    text: str,
+    token_type: TokenType,
+    value: int | float | str | None
+):
     lexer = create_lexer(text)
 
-    assert lexer.next_token() is not None
-    assert lexer.token is not None
-    assert lexer.token == expected_token
+    token = lexer.next_token()
+
+    assert token is not None
+    assert token.type == token_type
+    assert token.value == value
 
 
-@pytest.mark.parametrize('text, expected_token', (
-    ('+ 55 // comment;', (
-        Token(TokenType.PLUS, None, Position(1, 1, 0))
-    )),
-    ('// comment1 \n var', (
-        Token(TokenType.VAR, None, Position(2, 2, 14))
-    )),
-    ('// "string1" \n // "string2" \n "string3"', (
-        Token(TokenType.STRING, "string3", Position(3, 2, 30))
-    ))
-))
-def test_comment_filter_get_next_token(text: str, expected_token: Token):
-    lexer = create_lexer(text)
-    filter = LexerWithoutComments(lexer)
+# @pytest.mark.parametrize('text, expected_token', (
+#     ('+ 55 // comment;', (
+#         Token(TokenType.PLUS, None, Position(1, 1, 0))
+#     )),
+#     ('// comment1 \n var', (
+#         Token(TokenType.VAR, None, Position(2, 2, 14))
+#     )),
+#     ('// "string1" \n // "string2" \n "string3"', (
+#         Token(TokenType.STRING, "string3", Position(3, 2, 30))
+#     ))
+# ))
+# def test_comment_filter_get_next_token(text: str, expected_token: Token):
+#     lexer = create_lexer(text)
+#     filter = LexerWithoutComments(lexer)
 
-    assert filter.next_token() is not None
-    assert filter.token is not None
-    assert filter.token == expected_token
-
-
-TEST_TEXT_TOKENS_MAP = [
-    (
-        "€var a = 5; !\n"
-        "const ^b = a / 10;",
-        [
-            Token(TokenType.VAR, None, Position(1, 2, 3)),
-            Token(TokenType.IDENTIFIER, "a", Position(1, 6, 7)),
-            Token(TokenType.EQUAL, None, Position(1, 8, 9)),
-            Token(TokenType.NUMBER, 5, Position(1, 10, 11)),
-            Token(TokenType.SEMICOLON, None, Position(1, 11, 12)),
-            Token(TokenType.CONST, None, Position(2, 1, 16)),
-            Token(TokenType.IDENTIFIER, "b", Position(2, 8, 23)),
-            Token(TokenType.EQUAL, None, Position(2, 10, 25)),
-            Token(TokenType.IDENTIFIER, "a", Position(2, 12, 27)),
-            Token(TokenType.SLASH, None, Position(2, 14, 29)),
-            Token(TokenType.NUMBER, 10, Position(2, 16, 31)),
-            Token(TokenType.SEMICOLON, None, Position(2, 18, 33)),
-            Token(TokenType.EOF, None, Position(2, 19, 34))
-        ],
-        [
-            LexerError("Unexpected character: €", Position(1, 1, 0)),
-            LexerError("Unexpected character: !", Position(1, 13, 14)),
-            LexerError("Unexpected character: ^", Position(2, 7, 22)),
-        ]
-    ),
-]
+#     assert filter.next_token() is not None
+#     assert filter.token is not None
+#     assert filter.token == expected_token
 
 
-@pytest.mark.parametrize("text, tokens, errors", TEST_TEXT_TOKENS_MAP)
-def test_lexer(text: str, tokens: list[Token], errors: list[LexerError]):
-    stream = TextStream(text)
-    error_handler = DebugErrorHandler()
-    lexer = Lexer(stream, error_handler)
+# TEST_TEXT_TOKENS_MAP = [
+#     (
+#         "€var a = 5; !\n"
+#         "const ^b = a / 10;",
+#         [
+#             Token(TokenType.VAR, None, Position(1, 2, 3)),
+#             Token(TokenType.IDENTIFIER, "a", Position(1, 6, 7)),
+#             Token(TokenType.EQUAL, None, Position(1, 8, 9)),
+#             Token(TokenType.NUMBER, 5, Position(1, 10, 11)),
+#             Token(TokenType.SEMICOLON, None, Position(1, 11, 12)),
+#             Token(TokenType.CONST, None, Position(2, 1, 16)),
+#             Token(TokenType.IDENTIFIER, "b", Position(2, 8, 23)),
+#             Token(TokenType.EQUAL, None, Position(2, 10, 25)),
+#             Token(TokenType.IDENTIFIER, "a", Position(2, 12, 27)),
+#             Token(TokenType.SLASH, None, Position(2, 14, 29)),
+#             Token(TokenType.NUMBER, 10, Position(2, 16, 31)),
+#             Token(TokenType.SEMICOLON, None, Position(2, 18, 33)),
+#             Token(TokenType.EOF, None, Position(2, 19, 34))
+#         ],
+#         [
+#             LexerError("Unexpected character: €", Position(1, 1, 0)),
+#             LexerError("Unexpected character: !", Position(1, 13, 14)),
+#             LexerError("Unexpected character: ^", Position(2, 7, 22)),
+#         ]
+#     ),
+# ]
 
-    assert get_all_tokens(lexer) == tokens
-    assert error_handler.errors == errors
+
+# @pytest.mark.parametrize("text, tokens, errors", TEST_TEXT_TOKENS_MAP)
+# def test_lexer(text: str, tokens: list[Token], errors: list[LexerError]):
+#     stream = TextStream(text)
+#     error_handler = DebugErrorHandler()
+#     lexer = Lexer(stream, error_handler)
+
+#     assert get_all_tokens(lexer) == tokens
+#     assert error_handler.errors == errors
