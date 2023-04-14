@@ -23,4 +23,4 @@ class UnterminatedStringError(LexerError):
 
 class UnexpecterCharacterError(LexerError):
     def __init__(self, character: str, position: Position) -> None:
-        super().__init__(f"Unexpected character: {character}", position)
+        super().__init__(f"Unexpected character: `{character}`", position)
