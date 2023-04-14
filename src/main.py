@@ -3,16 +3,14 @@ from sys import argv
 from lexer.streams import FileStream, TextStream
 from lexer.lexers import Lexer, LexerWithoutComments
 from lexer.tokens import TokenType
-from error_handlers import ErrorHandler
 
 
 def run_prompt() -> None:
     while True:
         text = input("> ")
         stream = TextStream(text)
-        error_handler = ErrorHandler()
-        lexer = Lexer(stream, error_handler)
-        filter = LexerWithoutComments(lexer)
+        lexer = Lexer(stream)
+        # filter = LexerWithoutComments(lexer)
         token = filter.next_token()
         while (token and not token.type == TokenType.EOF) or not token:
             print(token)
@@ -22,9 +20,8 @@ def run_prompt() -> None:
 def run(path: str) -> None:
     with open(path, 'r') as f:
         stream = FileStream(f)
-        error_handler = ErrorHandler()
-        lexer = Lexer(stream, error_handler)
-        lexer = LexerWithoutComments(lexer)
+        lexer = Lexer(stream)
+        # lexer = LexerWithoutComments(lexer)
         token = lexer.next_token()
         while (token and not token.type == TokenType.EOF) or not token:
             print(token)
