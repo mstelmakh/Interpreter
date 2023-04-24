@@ -1,0 +1,4 @@
+€var a = 5; !
+const !b = a / 10;
+"ab\\$cd\a"
+"asd
