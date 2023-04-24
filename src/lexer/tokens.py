@@ -119,6 +119,15 @@ COMMENT_CHAR = "//"
 
 INDENTATION_CHARS = [" ", "\r", "\t", "\n"]
 
+ESCAPE_SEQUENCE_MAP = {
+    '\\n': '\n',
+    '\\b': '\b',
+    '\\r': '\r',
+    '\\t': '\t',
+    '\\\\': '\\',
+    '\\"': '\"'
+}
+
 COMPOSITE_CHAR_MAP = {
     "!=": TokenType.BANG_EQUAL,
     "==": TokenType.EQUAL_EQUAL,

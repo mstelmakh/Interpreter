@@ -12,7 +12,7 @@ def run_prompt() -> None:
         lexer = Lexer(stream)
         # filter = LexerWithoutComments(lexer)
         token = filter.next_token()
-        while (token and not token.type == TokenType.EOF) or not token:
+        while token and not token.type == TokenType.EOF:
             print(token)
             token = lexer.next_token()
 
@@ -23,7 +23,7 @@ def run(path: str) -> None:
         lexer = Lexer(stream)
         # lexer = LexerWithoutComments(lexer)
         token = lexer.next_token()
-        while (token and not token.type == TokenType.EOF) or not token:
+        while token and not token.type == TokenType.EOF:
             print(token)
             token = lexer.next_token()
 

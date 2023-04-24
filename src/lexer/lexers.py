@@ -6,6 +6,7 @@ from lexer.tokens import (
     KEYWORDS_MAP,
     SINGLE_CHAR_MAP,
     COMPOSITE_CHAR_MAP,
+    ESCAPE_SEQUENCE_MAP,
     INDENTATION_CHARS,
     COMMENT_CHAR
 )
@@ -45,18 +46,9 @@ class Lexer(BaseLexer):
                 self.stream.advance()
                 if self.stream.current_char == "":
                     raise UnterminatedStringError(self.lexeme_start_pos)
-                if self.stream.current_char == "n":
-                    value.append("\n")
-                elif self.stream.current_char == "b":
-                    value.append("\b")
-                elif self.stream.current_char == "r":
-                    value.append("\r")
-                elif self.stream.current_char == "t":
-                    value.append("\t")
-                elif self.stream.current_char == "\\":
-                    value.append("\\")
-                elif self.stream.current_char == "\"":
-                    value.append("\"")
+                escape_sequence = '\\' + self.stream.current_char
+                if escape_sequence in ESCAPE_SEQUENCE_MAP:
+                    value.append(ESCAPE_SEQUENCE_MAP[escape_sequence])
                 else:
                     raise InvalidEscapeSequenceError(
                         sequence=self.stream.current_char,
@@ -65,11 +57,18 @@ class Lexer(BaseLexer):
             else:
                 value.append(self.stream.current_char)
             self.stream.advance()
-        if not self.stream.current_char:
-            raise UnterminatedStringError(self.lexeme_start_pos)
+        self.ensureNotEOF(UnterminatedStringError)
         if self.stream.current_char == '"':
             self.stream.advance()
         return self.create_token(TokenType.STRING, "".join(value))
+
+    def _parse_integer(self) -> tuple[int, int]:
+        integer, length = 0, 0
+        while is_digit(self.stream.current_char):
+            integer = integer * 10 + int(self.stream.current_char)
+            length += 1
+            self.stream.advance()
+        return integer, length
 
     def try_build_number(self) -> bool:
         # Allows leading zeros and float number without float part
@@ -80,16 +79,14 @@ class Lexer(BaseLexer):
         fraction = 0.0
         fraction_length = 0
         is_float = False
+        integer, _ = self._parse_integer()
         while is_digit(self.stream.current_char):
             integer = integer * 10 + int(self.stream.current_char)
             self.stream.advance()
         if self.stream.current_char == '.':
             is_float = True
             self.stream.advance()
-            while is_digit(self.stream.current_char):
-                fraction = fraction * 10 + int(self.stream.current_char)
-                fraction_length += 1
-                self.stream.advance()
+            fraction, fraction_length = self._parse_integer()
         if fraction_length > 0:
             fraction = fraction / (10 ** fraction_length)
         return self.create_token(
@@ -111,13 +108,6 @@ class Lexer(BaseLexer):
             TokenType.IDENTIFIER,
             value_str
         )
-
-    def build_comment(self) -> Token:
-        value = []
-        while self.stream.current_char and self.stream.current_char != "\n":
-            value.append(self.stream.current_char)
-            self.stream.advance()
-        return self.create_token(TokenType.COMMENT, "".join(value))
 
     def _is_beginning_of_composite_operator_or_comment(self) -> bool:
         char = self.stream.current_char
@@ -145,7 +135,14 @@ class Lexer(BaseLexer):
         lexeme = previous + self.stream.current_char
         if lexeme == COMMENT_CHAR:
             self.stream.advance()
-            token = self.build_comment()
+            value = []
+            while (
+                self.stream.current_char and
+                not self.stream.current_char == "\n"
+            ):
+                value.append(self.stream.current_char)
+                self.stream.advance()
+            token = self.create_token(TokenType.COMMENT, "".join(value))
         elif lexeme in COMPOSITE_CHAR_MAP:
             token = self.create_token(COMPOSITE_CHAR_MAP[lexeme])
             self.stream.advance()
@@ -191,6 +188,10 @@ class Lexer(BaseLexer):
             character=self.stream.current_char,
             position=self.lexeme_start_pos
         )
+
+    def ensureNotEOF(self, ErrorType):
+        if not self.stream.current_char:
+            raise ErrorType(self.lexeme_start_pos)
 
     def create_token(
         self,
