@@ -6,12 +6,11 @@ from lexer.streams import TextStream
 def get_all_tokens(lexer: Lexer) -> Token:
     result = []
     token = lexer.next_token()
-    while True:
-        if token:
-            result.append(token)
-        if token and token.type == TokenType.EOF:
-            break
+    while token and not token.type == TokenType.EOF:
+        result.append(token)
         token = lexer.next_token()
+    if token and token.type == TokenType.EOF:
+        result.append(token)
     return result
 
 
