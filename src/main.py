@@ -3,6 +3,7 @@ from sys import argv
 from lexer.streams import FileStream, TextStream
 from lexer.lexers import Lexer, LexerWithoutComments
 from lexer.tokens import TokenType
+from parser.parser import Parser
 
 
 def run_prompt() -> None:
@@ -22,10 +23,12 @@ def run(path: str) -> None:
         stream = FileStream(f)
         lexer = Lexer(stream)
         # lexer = LexerWithoutComments(lexer)
-        token = lexer.next_token()
-        while token and not token.type == TokenType.EOF:
-            print(token)
-            token = lexer.next_token()
+        parser = Parser(lexer)
+        program = parser.parse()
+        # program.accept(AstPrinter())
+
+        # interpreter = Interpreter()
+        # program.accept(interpreter)
 
 
 if __name__ == "__main__":
