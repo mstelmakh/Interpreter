@@ -67,6 +67,14 @@ class TokenType(Enum):
     EOF = auto()
 
 
+LITERALS = [
+    TokenType.FALSE,
+    TokenType.TRUE,
+    TokenType.NIL,
+    TokenType.NUMBER,
+    TokenType.STRING
+]
+
 KEYWORDS_MAP = {
     "if": TokenType.IF,
     "else": TokenType.ELSE,
