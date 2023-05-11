@@ -76,7 +76,6 @@ class IdentifierExpr(Expr):
 @dataclass
 class CallExpr(Expr):
     calee: Expr
-    paren: Token
     arguments: list[Expr]
 
     def accept(self, visitor: Visitor) -> None:
