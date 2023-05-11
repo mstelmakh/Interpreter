@@ -1,5 +1,5 @@
 from lexer.lexers import BaseLexer
-from lexer.tokens import Token, TokenType, LITERALS
+from lexer.tokens import Token, TokenType, LITERALS, TYPES, COMPARISON_TYPES
 
 from parser.program import Program
 from parser.data import (
@@ -19,6 +19,12 @@ from parser.data import (
     WhileStmt,
     ExpressionStmt,
     ReturnStmt,
+    MatchStmt,
+    CaseStmt,
+    Guard,
+    PatternExpr,
+    ComparePatternExpr,
+    TypePatternExpr,
     Parameter,
     BlockStmt
 )
@@ -26,8 +32,11 @@ from parser.exceptions import (
     ParserError,
     MissingLeftParenthesisError,
     MissingRightParenthesisError,
+    MissingLeftBraceError,
     MissingRightBraceError,
     MissingExpressionError,
+    MissingPatternError,
+    MissingMatchArgumentsError,
     MissingArgumentError,
     MissingIfConditionError,
     MissingWhileConditionError,
@@ -36,11 +45,15 @@ from parser.exceptions import (
     MissingIfBodyError,
     MissingElseBodyError,
     MissingWhileBodyError,
+    MissingCaseBodyError,
     MissingVariableNameError,
     MissingSemicolonError,
+    MissingColonError,
     MissingParameterError,
     MissingParameterNameError,
-    DuplicateParametersError
+    MissingPatternIdentifierError,
+    DuplicateParametersError,
+    DuplicatePatternNamesError
 )
 
 from typing import Callable
@@ -57,15 +70,16 @@ class Parser:
         # declaration | expression_statement | if_statement |
         # while_statement | return_statement | match_statement
         return (
-          self.parse_function_stmt() or
-          self.parse_variable_stmt() or
-          self.parse_if_stmt() or
-          self.parse_while_stmt() or
-          self.parse_return_stmt() or
+          self.parse_function_declaration() or
+          self.parse_variable_declaration() or
+          self.parse_if() or
+          self.parse_while() or
+          self.parse_return() or
+          self.parse_match() or
           self.parse_expression_stmt()
         )
 
-    def parse_function_stmt(self) -> FunctionStmt | None:
+    def parse_function_declaration(self) -> FunctionStmt | None:
         # "fn" IDENTIFIER "(" [parameters] ")" block
         if not self.try_consume(TokenType.FUNCTION):
             return None
@@ -83,12 +97,12 @@ class Parser:
             TokenType.RIGHT_PAREN,
             MissingRightParenthesisError(self.current_token.position)
         )
-        block = self.parse_block_stmt()
+        block = self.parse_block()
         if not block:
             raise MissingFunctionBodyError(name, self.current_token.position)
         return FunctionStmt(name, parameters, block)
 
-    def parse_variable_stmt(self) -> VariableStmt | None:
+    def parse_variable_declaration(self) -> VariableStmt | None:
         # ("var" | "const") IDENTIFIER ["=" logical_or] ";"
         if self.try_consume(TokenType.VAR):
             is_const = False
@@ -145,7 +159,7 @@ class Parser:
             return Parameter(param.value, False)
         return None
 
-    def parse_if_stmt(self) -> IfStmt | None:
+    def parse_if(self) -> IfStmt | None:
         # "if" "(" expression ")" (statement | block)
         # ["else" (statement | block)]
         if not self.try_consume(TokenType.IF):
@@ -164,7 +178,7 @@ class Parser:
             TokenType.RIGHT_PAREN,
             MissingRightParenthesisError(self.current_token.position)
         )
-        body = self.parse_statement() or self.parse_block_stmt()
+        body = self.parse_statement() or self.parse_block()
         if not body:
             raise MissingIfBodyError(
                 self.current_token.position,
@@ -172,7 +186,7 @@ class Parser:
             )
         if not self.try_consume(TokenType.ELSE):
             return IfStmt(condition, body, None)
-        else_body = self.parse_statement() or self.parse_block_stmt()
+        else_body = self.parse_statement() or self.parse_block()
         if not else_body:
             raise MissingElseBodyError(
                 self.current_token.position,
@@ -180,7 +194,7 @@ class Parser:
             )
         return IfStmt(condition, body, else_body)
 
-    def parse_while_stmt(self) -> WhileStmt | None:
+    def parse_while(self) -> WhileStmt | None:
         # "while" "(" expression ")" (statement | block)
         if not self.try_consume(TokenType.WHILE):
             return None
@@ -198,7 +212,7 @@ class Parser:
             TokenType.RIGHT_PAREN,
             MissingRightParenthesisError(self.current_token.position)
         )
-        body = self.parse_statement() or self.parse_block_stmt()
+        body = self.parse_statement() or self.parse_block()
         if not body:
             raise MissingWhileBodyError(
                 self.current_token.position,
@@ -206,7 +220,7 @@ class Parser:
             )
         return WhileStmt(condition, body)
 
-    def parse_block_stmt(self) -> BlockStmt | None:
+    def parse_block(self) -> BlockStmt | None:
         # "{" {statement} "}"
         if not self.try_consume(TokenType.LEFT_BRACE):
             return None
@@ -219,7 +233,7 @@ class Parser:
         )
         return BlockStmt(statements)
 
-    def parse_return_stmt(self) -> ReturnStmt | None:
+    def parse_return(self) -> ReturnStmt | None:
         # "return" [expression] ";"
         if not self.try_consume(TokenType.RETURN):
             return None
@@ -229,6 +243,165 @@ class Parser:
             MissingSemicolonError(self.current_token.position)
         )
         return ReturnStmt(expr)
+
+    def parse_match(self) -> MatchStmt | None:
+        if not self.try_consume(TokenType.MATCH):
+            return None
+        self.consume(
+            TokenType.LEFT_PAREN,
+            MissingLeftParenthesisError(self.current_token.position)
+        )
+        arguments = self.parse_arguments()
+        if not arguments:
+            raise MissingMatchArgumentsError(self.current_token.position)
+        self.consume(
+            TokenType.RIGHT_PAREN,
+            MissingRightParenthesisError(self.current_token.position)
+        )
+        self.consume(
+            TokenType.LEFT_BRACE,
+            MissingLeftBraceError(self.current_token.position)
+        )
+        case_blocks = self.parse_case_blocks()
+        self.consume(
+            TokenType.RIGHT_BRACE,
+            MissingRightBraceError(self.current_token.position)
+        )
+        return MatchStmt(arguments, case_blocks)
+
+    def parse_case_blocks(self) -> list[CaseStmt]:
+        blocks = []
+        while block := self.parse_case_block():
+            blocks.append(block)
+        return blocks
+
+    def parse_case_block(self) -> CaseStmt | None:
+        if not self.try_consume(TokenType.LEFT_PAREN):
+            return None
+        patterns = self.parse_patterns()
+        if not patterns:
+            raise MissingExpressionError(
+                "Missing pattern",
+                self.current_token.position
+            )
+        self.consume(
+            TokenType.RIGHT_PAREN,
+            MissingRightParenthesisError(self.current_token.position)
+        )
+        guard = self.parse_guard()
+        self.consume(
+            TokenType.COLON,
+            MissingColonError(self.current_token.position)
+        )
+        body = self.parse_statement() or self.parse_block()
+        if not body:
+            raise MissingCaseBodyError(
+                self.current_token.position,
+                self.current_token.position
+            )
+        return CaseStmt(patterns, guard, body)
+
+    def parse_guard(self) -> Guard | None:
+        if not self.try_consume(TokenType.IF):
+            return None
+        self.consume(
+            TokenType.LEFT_PAREN,
+            MissingLeftParenthesisError(self.current_token.position)
+        )
+        condition = self.parse_expression()
+        if not condition:
+            raise MissingIfConditionError(self.current_token.position)
+        self.consume(
+            TokenType.RIGHT_PAREN,
+            MissingRightParenthesisError(self.current_token.position)
+        )
+        return Guard(condition)
+
+    def parse_patterns(self) -> list[PatternExpr]:
+        patterns = []
+        pattern = self.parse_pattern_expr()
+        if not pattern:
+            return patterns
+        patterns.append(pattern)
+        while self.try_consume(TokenType.COMMA):
+            pattern = self.parse_pattern_expr()
+            if not pattern:
+                raise MissingPatternError(self.current_token.position)
+            if pattern.name in [pattern.name for pattern in patterns]:
+                raise DuplicatePatternNamesError(
+                    pattern.name,
+                    self.current_token.position
+                )
+            patterns.append(pattern)
+        return patterns
+
+    def parse_pattern_expr(self) -> PatternExpr | None:
+        if self.try_consume(TokenType.UNDERSCORE):
+            pattern = None
+        else:
+            pattern = self.parse_pattern()
+            if not pattern:
+                return None
+        if not self.try_consume(TokenType.AS):
+            return PatternExpr(pattern, None)
+        identifier = self.consume(
+            TokenType.IDENTIFIER,
+            MissingPatternIdentifierError(self.current_token.position)
+        )
+        return PatternExpr(pattern, IdentifierExpr(identifier.value))
+
+    def parse_pattern(self) -> Expr | None:
+        return self.parse_or_pattern()
+
+    def parse_or_pattern(self) -> Expr | None:
+        expr = self.parse_and_pattern()
+        if not expr:
+            return None
+        while operator := self.try_consume(TokenType.OR):
+            right = self.parse_and_pattern()
+            if not right:
+                raise MissingExpressionError(
+                    "Missing expression after 'or' statement",
+                    self.current_token.position
+                )
+            expr = LogicalExpr(expr, operator, right)
+        return expr
+
+    def parse_and_pattern(self) -> Expr | None:
+        expr = self.parse_compare_pattern() or self.parse_type_pattern()
+        if not expr:
+            return None
+        while operator := self.try_consume(TokenType.AND):
+            right = self.parse_compare_pattern() or self.parse_type_pattern()
+            if not right:
+                raise MissingExpressionError(
+                    "Missing expression after 'and' statement",
+                    self.current_token.position
+                )
+            expr = LogicalExpr(expr, operator, right)
+        return expr
+
+    def parse_compare_pattern(self) -> Expr | None:
+        if any(
+            operator := self.try_consume(expected)
+            for expected in COMPARISON_TYPES + [TokenType.BANG_EQUAL]
+        ):
+            right = self.parse_unary()
+            if not right:
+                raise MissingExpressionError(
+                    "Missing expression",
+                    self.current_token.position
+                )
+            return ComparePatternExpr(operator, right)
+        return self.parse_unary()
+
+    def parse_type_pattern(self) -> TypePatternExpr | None:
+        if not any(
+            token := self.try_consume(expected)
+            for expected in TYPES
+        ):
+            return None
+        return TypePatternExpr(token.type)
 
     def parse_expression_stmt(self) -> ExpressionStmt | None:
         # expression ";"
@@ -245,7 +418,7 @@ class Parser:
         # assignment
         return self.parse_assignment()
 
-    def parse_assignment(self) -> AssignmentExpr | None:
+    def parse_assignment(self) -> Expr | None:
         # [IDENTIFIER "="] logical_or
         if not (token := self.try_consume(TokenType.IDENTIFIER)):
             return self.parse_or()
@@ -256,7 +429,7 @@ class Parser:
         self.current_token = token
         return self.parse_or()
 
-    def parse_or(self) -> LogicalExpr | None:
+    def parse_or(self) -> Expr | None:
         # logical_and {"or" logical_and}
         expr = self.parse_and()
         if not expr:
@@ -271,9 +444,9 @@ class Parser:
             expr = LogicalExpr(expr, operator, right)
         return expr
 
-    def parse_and(self) -> LogicalExpr | None:
+    def parse_and(self) -> Expr | None:
         # equality {"and" equality}
-        expr = self.parse_comparison()
+        expr = self.parse_equality()
         if not expr:
             return None
         while operator := self.try_consume(TokenType.AND):
@@ -286,14 +459,14 @@ class Parser:
             expr = LogicalExpr(expr, operator, right)
         return expr
 
-    def parse_equality(self) -> BinaryExpr | None:
+    def parse_equality(self) -> Expr | None:
         # comparison {EQUALITY_SIGN comparison}
         return self._parse_binary(
             self.parse_comparison,
             [TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL]
         )
 
-    def parse_comparison(self) -> BinaryExpr | None:
+    def parse_comparison(self) -> Expr | None:
         # term [COMPARISON_SIGN term]
         return self._parse_binary(
             self.parse_term,
@@ -301,21 +474,21 @@ class Parser:
              TokenType.LESS, TokenType.LESS_EQUAL]
         )
 
-    def parse_term(self) -> BinaryExpr | None:
+    def parse_term(self) -> Expr | None:
         # factor {("-" | "+") factor}
         return self._parse_binary(
             self.parse_factor,
             [TokenType.PLUS, TokenType.MINUS]
         )
 
-    def parse_factor(self) -> BinaryExpr | None:
+    def parse_factor(self) -> Expr | None:
         # unary {("/" | "*") unary}
         return self._parse_binary(
             self.parse_unary,
             [TokenType.SLASH, TokenType.STAR]
         )
 
-    def parse_unary(self):
+    def parse_unary(self) -> Expr | None:
         # ["not" | "-"] primary
         if (
             operator := self.try_consume(TokenType.MINUS) or
@@ -330,15 +503,15 @@ class Parser:
             return UnaryExpr(operator, right)
         return self.parse_primary()
 
-    def parse_primary(self):
+    def parse_primary(self) -> Expr | None:
         # call | IDENTIFIER | LITERAL | "(" expression ")"
         return (
-            self.parse_indentifier_or_call() or
+            self.parse_identifier_or_call() or
             self.parse_literal() or
             self.parse_grouping()
         )
 
-    def parse_indentifier_or_call(self) -> IdentifierExpr | CallExpr | None:
+    def parse_identifier_or_call(self) -> IdentifierExpr | CallExpr | None:
         # call = IDENTIFIER "(" [arguments] ")" {"(" [arguments] ")"}
         if not (identifier := self.try_consume(TokenType.IDENTIFIER)):
             return None
@@ -373,7 +546,12 @@ class Parser:
         return arguments
 
     def parse_literal(self) -> LiteralExpr | None:
+        # TODO: Bool token doesn't have value
         # NUMBER | STRING | BOOLEAN | "nil"
+        if self.try_consume(TokenType.TRUE):
+            return LiteralExpr(True)
+        if self.try_consume(TokenType.FALSE):
+            return LiteralExpr(False)
         if any(
             token := self.try_consume(token_type)
             for token_type in LITERALS
@@ -404,7 +582,7 @@ class Parser:
         self,
         parse_operand: Callable[[], None],
         operator_types: list[TokenType]
-    ) -> BinaryExpr | None:
+    ):
         expr = parse_operand()
         if not expr:
             return None

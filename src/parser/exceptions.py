@@ -23,6 +23,14 @@ class MissingRightParenthesisError(ParserError):
         )
 
 
+class MissingLeftBraceError(ParserError):
+    def __init__(self, position: Position) -> None:
+        super().__init__(
+            "Missing opening brace",
+            position
+        )
+
+
 class MissingRightBraceError(ParserError):
     def __init__(self, position: Position) -> None:
         super().__init__(
@@ -36,9 +44,19 @@ class MissingExpressionError(ParserError):
         super().__init__(message, position)
 
 
+class MissingMatchArgumentsError(MissingExpressionError):
+    def __init__(self, position: Position) -> None:
+        super().__init__("Missing arguments for 'match' statement", position)
+
+
 class MissingArgumentError(MissingExpressionError):
     def __init__(self, position: Position) -> None:
         super().__init__("Missing argument", position)
+
+
+class MissingPatternError(MissingExpressionError):
+    def __init__(self, position: Position) -> None:
+        super().__init__("Missing pattern", position)
 
 
 class MissingConditionError(MissingExpressionError):
@@ -92,6 +110,11 @@ class MissingWhileBodyError(MissingStatementBodyError):
         super().__init__("while", position)
 
 
+class MissingCaseBodyError(MissingStatementBodyError):
+    def __init__(self, position: Position) -> None:
+        super().__init__("case", position)
+
+
 class MissingVariableNameError(MissingStatementBodyError):
     def __init__(self, position: Position) -> None:
         super().__init__("Missing variable name", position)
@@ -100,6 +123,11 @@ class MissingVariableNameError(MissingStatementBodyError):
 class MissingSemicolonError(ParserError):
     def __init__(self, position: Position) -> None:
         super().__init__("Missing semicolon", position)
+
+
+class MissingColonError(ParserError):
+    def __init__(self, position: Position) -> None:
+        super().__init__("Missing colon", position)
 
 
 class MissingParameterError(ParserError):
@@ -112,9 +140,22 @@ class MissingParameterNameError(ParserError):
         super().__init__("Missing parameter name", position)
 
 
+class MissingPatternIdentifierError(ParserError):
+    def __init__(self, position: Position) -> None:
+        super().__init__("Missing pattern identifier", position)
+
+
 class DuplicateParametersError(ParserError):
     def __init__(self, parameter_name: str, position: Position) -> None:
         super().__init__(
             f"Duplicate of '{parameter_name}' parameter",
+            position
+        )
+
+
+class DuplicatePatternNamesError(ParserError):
+    def __init__(self, pattern_name: str, position: Position) -> None:
+        super().__init__(
+            f"Duplicate of '{pattern_name}' name",
             position
         )

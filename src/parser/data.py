@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
-from lexer.tokens import Token
+from lexer.tokens import Token, TokenType
 
 
 class Expr(ABC):
@@ -152,6 +152,64 @@ class ReturnStmt(Stmt):
 
 
 @dataclass
+class MatchStmt(Stmt):
+    arguments: list[Expr]
+    case_blocks: list[CaseStmt]
+
+    def accept(self, visitor: Visitor) -> None:
+        return visitor.visit_match_stmt(self)
+
+
+@dataclass
+class CaseStmt(Stmt):
+    patterns: list[PatternExpr]
+    guard: Guard | None
+    body: Stmt
+
+    def accept(self, visitor: Visitor) -> None:
+        return visitor.visit_case_stmt(self)
+
+
+@dataclass
+class Guard(Stmt):
+    # TODO: Stmt or Expr?
+    condition: Expr
+
+    def accept(self, visitor: Visitor) -> None:
+        return visitor.visit_guard(self)
+
+
+@dataclass
+class PatternExpr(Expr):
+    pattern: Expr | None
+    name: Token | None
+
+    def accept(self, visitor: Visitor) -> None:
+        return visitor.visit_pattern_expr(self)
+
+
+@dataclass
+class ComparePatternExpr(Expr):
+    operator: Token
+    right: Expr
+
+    def accept(self, visitor: Visitor) -> None:
+        return visitor.visit_compare_pattern_expr(self)
+
+
+@dataclass
+class TypePatternExpr(Expr):
+    type: (
+        TokenType.STRING_TYPE | TokenType.NUMBER_TYPE |
+        TokenType.BOOL_TYPE | TokenType.FUNCTION_TYPE |
+        TokenType.NIL_TYPE
+    )
+
+    def accept(self, visitor: Visitor) -> None:
+        return visitor.visit_type_pattern_expr(self)
+
+
+@dataclass
 class Parameter(Stmt):
     name: str
     is_const: bool
@@ -219,6 +277,30 @@ class Visitor(ABC):
 
     @abstractmethod
     def visit_return_stmt(stmt: ReturnStmt):
+        pass
+
+    @abstractmethod
+    def visit_match_stmt(stmt: MatchStmt):
+        pass
+
+    @abstractmethod
+    def visit_case_stmt(stmt: CaseStmt):
+        pass
+
+    @abstractmethod
+    def visit_guard(stmt: Guard):
+        pass
+
+    @abstractmethod
+    def visit_pattern_expr(stmt: PatternExpr):
+        pass
+
+    @abstractmethod
+    def visit_compare_pattern_expr(stmt: ComparePatternExpr):
+        pass
+
+    @abstractmethod
+    def visit_type_pattern_expr(stmt: TypePatternExpr):
         pass
 
     @abstractmethod
