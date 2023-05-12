@@ -3,7 +3,9 @@ from sys import argv
 from lexer.streams import FileStream, TextStream
 from lexer.lexers import Lexer, LexerWithoutComments
 from lexer.tokens import TokenType
+
 from parser.parser import Parser
+from parser.ast_printer import AstPrinter
 
 
 def run_prompt() -> None:
@@ -25,7 +27,7 @@ def run(path: str) -> None:
         # lexer = LexerWithoutComments(lexer)
         parser = Parser(lexer)
         program = parser.parse()
-        # program.accept(AstPrinter())
+        program.accept(AstPrinter())
 
         # interpreter = Interpreter()
         # program.accept(interpreter)
