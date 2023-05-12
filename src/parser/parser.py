@@ -245,6 +245,7 @@ class Parser:
         return ReturnStmt(expr)
 
     def parse_match(self) -> MatchStmt | None:
+        # "match" "(" arguments ")" "{" {case_block} "}"
         if not self.try_consume(TokenType.MATCH):
             return None
         self.consume(
@@ -270,12 +271,15 @@ class Parser:
         return MatchStmt(arguments, case_blocks)
 
     def parse_case_blocks(self) -> list[CaseStmt]:
+        # {case_block}
         blocks = []
         while block := self.parse_case_block():
             blocks.append(block)
         return blocks
 
     def parse_case_block(self) -> CaseStmt | None:
+        # "(" pattern_expression {"," pattern_expression} ")"
+        # [guard] ":" (statement | block)
         if not self.try_consume(TokenType.LEFT_PAREN):
             return None
         patterns = self.parse_patterns()
@@ -302,6 +306,7 @@ class Parser:
         return CaseStmt(patterns, guard, body)
 
     def parse_guard(self) -> Guard | None:
+        # "if" "(" expression ")"
         if not self.try_consume(TokenType.IF):
             return None
         self.consume(
@@ -318,6 +323,7 @@ class Parser:
         return Guard(condition)
 
     def parse_patterns(self) -> list[PatternExpr]:
+        # pattern_expression {"," pattern_expression}
         patterns = []
         pattern = self.parse_pattern_expr()
         if not pattern:
@@ -338,6 +344,7 @@ class Parser:
         return patterns
 
     def parse_pattern_expr(self) -> PatternExpr | None:
+        # ("_" | pattern) ["as" IDENTIFIER]
         if self.try_consume(TokenType.UNDERSCORE):
             pattern = None
         else:
@@ -353,9 +360,11 @@ class Parser:
         return PatternExpr(pattern, IdentifierExpr(identifier.value))
 
     def parse_pattern(self) -> Expr | None:
+        # or_pattern
         return self.parse_or_pattern()
 
     def parse_or_pattern(self) -> Expr | None:
+        # and_pattern {"or" and_pattern}
         expr = self.parse_and_pattern()
         if not expr:
             return None
@@ -370,6 +379,8 @@ class Parser:
         return expr
 
     def parse_and_pattern(self) -> Expr | None:
+        # closed_pattern {"and" closed_pattern}
+        # closed_pattern = compare_pattern | type_pattern
         expr = self.parse_compare_pattern() or self.parse_type_pattern()
         if not expr:
             return None
@@ -384,6 +395,7 @@ class Parser:
         return expr
 
     def parse_compare_pattern(self) -> Expr | None:
+        #  ["!=" | COMPARISON_SIGN] unary
         if any(
             operator := self.try_consume(expected)
             for expected in COMPARISON_TYPES + [TokenType.BANG_EQUAL]
@@ -398,6 +410,7 @@ class Parser:
         return self.parse_unary()
 
     def parse_type_pattern(self) -> TypePatternExpr | None:
+        # TYPE
         if not any(
             token := self.try_consume(expected)
             for expected in TYPES
@@ -549,7 +562,6 @@ class Parser:
         return arguments
 
     def parse_literal(self) -> LiteralExpr | None:
-        # TODO: Bool token doesn't have value
         # NUMBER | STRING | BOOLEAN | "nil"
         if self.try_consume(TokenType.TRUE):
             return LiteralExpr(True)
@@ -563,6 +575,7 @@ class Parser:
         return None
 
     def parse_grouping(self) -> GroupingExpr | None:
+        # "(" expression ")"
         if not self.try_consume(TokenType.LEFT_PAREN):
             return None
         expr = self.parse_expression()
