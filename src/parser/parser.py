@@ -1,8 +1,8 @@
 from lexer.lexers import BaseLexer
 from lexer.tokens import Token, TokenType, LITERALS, TYPES, COMPARISON_TYPES
 
-from parser.program import Program
 from parser.data import (
+    Program,
     Expr,
     AssignmentExpr,
     LogicalExpr,
@@ -327,7 +327,9 @@ class Parser:
             pattern = self.parse_pattern_expr()
             if not pattern:
                 raise MissingPatternError(self.current_token.position)
-            if pattern.name in [pattern.name for pattern in patterns]:
+            if pattern.name and pattern.name in [
+                pattern.name for pattern in patterns
+            ]:
                 raise DuplicatePatternNamesError(
                     pattern.name,
                     self.current_token.position
@@ -515,13 +517,14 @@ class Parser:
         # call = IDENTIFIER "(" [arguments] ")" {"(" [arguments] ")"}
         if not (identifier := self.try_consume(TokenType.IDENTIFIER)):
             return None
+        identifier = IdentifierExpr(identifier.value)
         if not (expr := self.finish_call(identifier)):
-            return IdentifierExpr(identifier.value)
+            return identifier
         while new_expr := self.finish_call(expr):
             expr = new_expr
         return expr
 
-    def finish_call(self, expr: CallExpr) -> CallExpr | None:
+    def finish_call(self, expr: IdentifierExpr | CallExpr) -> CallExpr | None:
         if not self.try_consume(TokenType.LEFT_PAREN):
             return None
         arguments = self.parse_arguments()
