@@ -1,7 +1,7 @@
 from lexer.lexers import BaseLexer
 from lexer.tokens import Token, TokenType, LITERALS, TYPES, COMPARISON_TYPES
 
-from parser.data import (
+from parser.models import (
     Program,
     Expr,
     AssignmentExpr,
@@ -17,7 +17,6 @@ from parser.data import (
     VariableStmt,
     IfStmt,
     WhileStmt,
-    ExpressionStmt,
     ReturnStmt,
     MatchStmt,
     CaseStmt,
@@ -30,6 +29,7 @@ from parser.data import (
 )
 from parser.exceptions import (
     ParserError,
+    InvalidSyntaxError,
     MissingLeftParenthesisError,
     MissingRightParenthesisError,
     MissingLeftBraceError,
@@ -114,19 +114,19 @@ class Parser:
             TokenType.IDENTIFIER,
             MissingVariableNameError(self.current_token.position)
         )
-        if not self.try_consume(TokenType.EQUAL):
-            return VariableStmt(token, None, is_const)
-        expr = self.parse_or()
-        if not expr:
-            raise MissingExpressionError(
-                "Missing expression after '='",
-                self.current_token.position
-            )
+        expr = None
+        if self.try_consume(TokenType.EQUAL):
+            expr = self.parse_or()
+            if not expr:
+                raise MissingExpressionError(
+                    "Missing expression after '='",
+                    self.current_token.position
+                )
         self.consume(
             TokenType.SEMICOLON,
             MissingSemicolonError(self.current_token.position)
         )
-        return VariableStmt(token, expr, is_const)
+        return VariableStmt(token.value, expr, is_const)
 
     def parse_parameters(self) -> list[Parameter]:
         # parameter {"," parameter}
@@ -153,7 +153,7 @@ class Parser:
             name = self.consume(
                 TokenType.IDENTIFIER,
                 MissingParameterNameError(self.current_token.position)
-            )
+            ).value
             return Parameter(name, True)
         if param := self.try_consume(TokenType.IDENTIFIER):
             return Parameter(param.value, False)
@@ -171,7 +171,6 @@ class Parser:
         condition = self.parse_expression()
         if not condition:
             raise MissingIfConditionError(
-                self.current_token.position,
                 self.current_token.position
             )
         self.consume(
@@ -181,7 +180,6 @@ class Parser:
         body = self.parse_statement() or self.parse_block()
         if not body:
             raise MissingIfBodyError(
-                self.current_token.position,
                 self.current_token.position
             )
         if not self.try_consume(TokenType.ELSE):
@@ -189,7 +187,6 @@ class Parser:
         else_body = self.parse_statement() or self.parse_block()
         if not else_body:
             raise MissingElseBodyError(
-                self.current_token.position,
                 self.current_token.position
             )
         return IfStmt(condition, body, else_body)
@@ -205,7 +202,6 @@ class Parser:
         condition = self.parse_expression()
         if not condition:
             raise MissingWhileConditionError(
-                self.current_token.position,
                 self.current_token.position
             )
         self.consume(
@@ -215,7 +211,6 @@ class Parser:
         body = self.parse_statement() or self.parse_block()
         if not body:
             raise MissingWhileBodyError(
-                self.current_token.position,
                 self.current_token.position
             )
         return WhileStmt(condition, body)
@@ -300,7 +295,6 @@ class Parser:
         body = self.parse_statement() or self.parse_block()
         if not body:
             raise MissingCaseBodyError(
-                self.current_token.position,
                 self.current_token.position
             )
         return CaseStmt(patterns, guard, body)
@@ -357,7 +351,7 @@ class Parser:
             TokenType.IDENTIFIER,
             MissingPatternIdentifierError(self.current_token.position)
         )
-        return PatternExpr(pattern, IdentifierExpr(identifier.value))
+        return PatternExpr(pattern, identifier.value)
 
     def parse_pattern(self) -> Expr | None:
         # or_pattern
@@ -375,23 +369,23 @@ class Parser:
                     "Missing expression after 'or' statement",
                     self.current_token.position
                 )
-            expr = LogicalExpr(expr, operator, right)
+            expr = LogicalExpr(expr, operator.type, right)
         return expr
 
     def parse_and_pattern(self) -> Expr | None:
         # closed_pattern {"and" closed_pattern}
         # closed_pattern = compare_pattern | type_pattern
-        expr = self.parse_compare_pattern() or self.parse_type_pattern()
+        expr = self.parse_type_pattern() or self.parse_compare_pattern()
         if not expr:
             return None
         while operator := self.try_consume(TokenType.AND):
-            right = self.parse_compare_pattern() or self.parse_type_pattern()
+            right = self.parse_type_pattern() or self.parse_compare_pattern()
             if not right:
                 raise MissingExpressionError(
                     "Missing expression after 'and' statement",
                     self.current_token.position
                 )
-            expr = LogicalExpr(expr, operator, right)
+            expr = LogicalExpr(expr, operator.type, right)
         return expr
 
     def parse_compare_pattern(self) -> Expr | None:
@@ -406,8 +400,11 @@ class Parser:
                     "Missing expression",
                     self.current_token.position
                 )
-            return ComparePatternExpr(operator, right)
-        return self.parse_unary()
+            return ComparePatternExpr(operator.type, right)
+        expr = self.parse_unary()
+        if not expr:
+            return None
+        return ComparePatternExpr(None, expr)
 
     def parse_type_pattern(self) -> TypePatternExpr | None:
         # TYPE
@@ -418,7 +415,7 @@ class Parser:
             return None
         return TypePatternExpr(token.type)
 
-    def parse_expression_stmt(self) -> ExpressionStmt | None:
+    def parse_expression_stmt(self) -> Expr | None:
         # expression ";"
         expr = self.parse_expression()
         if not expr:
@@ -427,7 +424,7 @@ class Parser:
             TokenType.SEMICOLON,
             MissingSemicolonError(self.current_token.position)
         )
-        return ExpressionStmt(expr)
+        return expr
 
     def parse_expression(self) -> Expr | None:
         # assignment
@@ -439,7 +436,7 @@ class Parser:
             return self.parse_or()
         if self.try_consume(TokenType.EQUAL):
             value = self.parse_or()
-            return AssignmentExpr(token, value)
+            return AssignmentExpr(token.value, value)
         self.queue.append(self.current_token)
         self.current_token = token
         return self.parse_or()
@@ -456,7 +453,7 @@ class Parser:
                     "Missing expression after 'or' statement",
                     self.current_token.position
                 )
-            expr = LogicalExpr(expr, operator, right)
+            expr = LogicalExpr(expr, operator.type, right)
         return expr
 
     def parse_and(self) -> Expr | None:
@@ -471,7 +468,7 @@ class Parser:
                     "Missing expression after 'and' statement",
                     self.current_token.position
                 )
-            expr = LogicalExpr(expr, operator, right)
+            expr = LogicalExpr(expr, operator.type, right)
         return expr
 
     def parse_equality(self) -> Expr | None:
@@ -515,7 +512,7 @@ class Parser:
                     "Missing unary expression",
                     self.current_token.position
                 )
-            return UnaryExpr(operator, right)
+            return UnaryExpr(operator.type, right)
         return self.parse_primary()
 
     def parse_primary(self) -> Expr | None:
@@ -590,8 +587,11 @@ class Parser:
         statements = []
         while statement := self.parse_statement():
             statements.append(statement)
-        print(statements)
-        # TODO: error if not EOF?
+        if not self.current_token.type == TokenType.EOF:
+            raise InvalidSyntaxError(
+                f"Unexpected token of type '{self.current_token.type}'",
+                self.current_token.position
+            )
         return Program(statements)
 
     def _parse_binary(
@@ -612,7 +612,7 @@ class Parser:
                     "Missing second expression",
                     self.current_token.position
                 )
-            expr = BinaryExpr(expr, operator, right)
+            expr = BinaryExpr(expr, operator.type, right)
         return expr
 
     def try_consume(self, expected_type: TokenType) -> Token | None:
