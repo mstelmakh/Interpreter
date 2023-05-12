@@ -1,4 +1,4 @@
-from parser.data import (
+from parser.models import (
     Program,
     BinaryExpr,
     Visitor,
@@ -14,7 +14,6 @@ from parser.data import (
     VariableStmt,
     IfStmt,
     WhileStmt,
-    ExpressionStmt,
     ReturnStmt,
     MatchStmt,
     CaseStmt,
@@ -94,7 +93,8 @@ class AstPrinter(Visitor):
     def visit_variable_stmt(self, stmt: VariableStmt):
         self._print(str(stmt.name))
         self._print("is_const=" + str(stmt.is_const))
-        stmt.expression.accept(self)
+        if stmt.expression:
+            stmt.expression.accept(self)
 
     @print_type_and_indent
     def visit_if_stmt(self, stmt: IfStmt):
@@ -107,10 +107,6 @@ class AstPrinter(Visitor):
     def visit_while_stmt(self, stmt: WhileStmt):
         stmt.condition.accept(self)
         stmt.body.accept(self)
-
-    @print_type_and_indent
-    def visit_expression_stmt(self, stmt: ExpressionStmt):
-        stmt.expression.accept(self)
 
     @print_type_and_indent
     def visit_return_stmt(self, stmt: ReturnStmt):
