@@ -5,6 +5,14 @@ from abc import ABC, abstractmethod
 from lexer.tokens import Token, TokenType
 
 
+@dataclass
+class Program:
+    statements: list[Stmt]
+
+    def accept(self, visitor: Visitor):
+        return visitor.visit_program(self)
+
+
 class Expr(ABC):
     @abstractmethod
     def accept(self, visitor: Visitor) -> None:
@@ -27,7 +35,7 @@ class BinaryExpr(Expr):
     right: Expr
 
     def accept(self, visitor: Visitor) -> None:
-        return visitor.visit_binary_expr(self)
+        return visitor.visit_binary(self)
 
 
 @dataclass
@@ -219,6 +227,10 @@ class Parameter(Stmt):
 
 
 class Visitor(ABC):
+    @abstractmethod
+    def visit_program(program: Program):
+        pass
+
     @abstractmethod
     def visit_assignment_expr(expr: AssignmentExpr):
         pass
