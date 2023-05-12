@@ -500,7 +500,7 @@ TEST_TEXT_TOKENS_MAP = [
             Token(TokenType.RIGHT_PAREN, None, Position(2, 61, 77)),
             Token(TokenType.SEMICOLON, None, Position(2, 62, 78)),
             Token(TokenType.LEFT_PAREN, None, Position(3, 4, 83)),
-            Token(TokenType.IDENTIFIER, "_", Position(3, 5, 84)),
+            Token(TokenType.UNDERSCORE, None, Position(3, 5, 84)),
             Token(TokenType.RIGHT_PAREN, None, Position(3, 6, 85)),
             Token(TokenType.COLON, None, Position(3, 7, 86)),
             Token(TokenType.IDENTIFIER, "print", Position(3, 9, 88)),
