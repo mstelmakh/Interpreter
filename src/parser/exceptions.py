@@ -7,6 +7,10 @@ class ParserError(Exception):
         self.position = position
 
 
+class InvalidSyntaxError(ParserError):
+    pass
+
+
 class MissingLeftParenthesisError(ParserError):
     def __init__(self, position: Position) -> None:
         super().__init__(
