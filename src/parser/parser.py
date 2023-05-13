@@ -404,7 +404,7 @@ class Parser:
         expr = self.parse_unary()
         if not expr:
             return None
-        return ComparePatternExpr(None, expr)
+        return ComparePatternExpr(TokenType.EQUAL_EQUAL, expr)
 
     def parse_type_pattern(self) -> TypePatternExpr | None:
         # TYPE
@@ -436,6 +436,11 @@ class Parser:
             return self.parse_or()
         if self.try_consume(TokenType.EQUAL):
             value = self.parse_or()
+            if not value:
+                raise MissingExpressionError(
+                    "Missing expression after '='",
+                    self.current_token.position
+                )
             return AssignmentExpr(token.value, value)
         self.queue.append(self.current_token)
         self.current_token = token
@@ -598,7 +603,7 @@ class Parser:
         self,
         parse_operand: Callable[[], None],
         operator_types: list[TokenType]
-    ):
+    ) -> Expr | None:
         expr = parse_operand()
         if not expr:
             return None
