@@ -4,10 +4,9 @@ from lexer.tests.utils import create_lexer
 from lexer.tokens import TokenType
 
 from parser.parser import Parser
-from parser.tests.utils import create_parser
+from parser.tests.utils import create_parser, test_text_raises_error
 
 from parser.models import (
-    Program,
     Expr,
     AssignmentExpr,
     LogicalExpr,
@@ -34,7 +33,6 @@ from parser.models import (
 )
 from parser.exceptions import (
     ParserError,
-    InvalidSyntaxError,
     MissingLeftParenthesisError,
     MissingRightParenthesisError,
     MissingLeftBraceError,
@@ -67,6 +65,291 @@ def test_init_parser():
     lexer = create_lexer(text)
     parser = Parser(lexer)
     assert parser.current_token.type == TokenType.VAR
+
+
+@pytest.mark.parametrize('text, expected_value', (
+    ("0", 0), ("123456", 123456), ("00001", 1), ("00001.", 1.0),
+    ("0.123", 0.123), ("0.00123", 0.00123), ("000.012300", 0.0123),
+    ('"hello"', "hello"), ('"53+52"', "53+52"), ('"\nabc\t\n"', "\nabc\t\n"),
+    ("true", True), ("false", False), ("nil", None)
+))
+def test_literal_success(
+    text: str,
+    expected_value: int | float | str | None
+):
+    parser = create_parser(text + ";")
+    program = parser.parse()
+    literal = program.statements[0]
+    assert isinstance(literal, LiteralExpr)
+    assert literal.value == expected_value
+
+
+@pytest.mark.parametrize('text', (
+    "variable", "orchid", "String", "andor", "whileas"
+))
+def test_identifier_success(
+    text: str,
+):
+    parser = create_parser(text + ";")
+    program = parser.parse()
+    identifier = program.statements[0]
+    assert isinstance(identifier, IdentifierExpr)
+    assert identifier.name == text
+
+
+@pytest.mark.parametrize('text, expression', (
+    ("(variable)", IdentifierExpr("variable")),
+    ('("string")', LiteralExpr("string")),
+    ('(true)', LiteralExpr(True)),
+    ('(2+5)', BinaryExpr(LiteralExpr(2), TokenType.PLUS, LiteralExpr(5))),
+))
+def test_grouping_success(
+    text: str,
+    expression: Expr
+):
+    parser = create_parser(text + ";")
+    program = parser.parse()
+    grouping = program.statements[0]
+    assert isinstance(grouping, GroupingExpr)
+    assert grouping.expression == expression
+
+
+@pytest.mark.parametrize('text, error', (
+    ("(2+5)", MissingSemicolonError),
+    ("(2+5;", MissingRightParenthesisError),
+))
+def test_grouping_error(text: str, error: type[ParserError]):
+    test_text_raises_error(text, error)
+
+
+@pytest.mark.parametrize('text, calee, arguments', (
+    ('do_nothing()', IdentifierExpr("do_nothing"), []),
+    ('print("hello")', IdentifierExpr("print"), [LiteralExpr("hello")]),
+    (
+        'is_true(true or false)',
+        IdentifierExpr("is_true"),
+        [LogicalExpr(LiteralExpr(True), TokenType.OR, LiteralExpr(False))]
+    ),
+    (
+        'add(1)(2)',
+        CallExpr(IdentifierExpr("add"), [LiteralExpr(1)]),
+        [LiteralExpr(2)]
+    ),
+))
+def test_call_success(
+    text: str,
+    calee: Expr,
+    arguments: list[Expr]
+):
+    parser = create_parser(text + ";")
+    program = parser.parse()
+    call = program.statements[0]
+    assert isinstance(call, CallExpr)
+    assert call.calee == calee
+    assert call.arguments == arguments
+
+
+@pytest.mark.parametrize('text, error', (
+    ('add(1)(2)', MissingSemicolonError),
+    ('add(1(2);', MissingRightParenthesisError),
+    ('add(1)(2;', MissingRightParenthesisError),
+    ('add(1,)(2);', MissingArgumentError),
+    ('add(1)(2,);', MissingArgumentError),
+))
+def test_call_error(text: str, error: type[ParserError]):
+    test_text_raises_error(text, error)
+
+
+@pytest.mark.parametrize('text, operator, expression', (
+    ("-2", TokenType.MINUS, LiteralExpr(2)),
+    ("not true", TokenType.NOT, LiteralExpr(True)),
+    (
+        'not (2+"2">5)',
+        TokenType.NOT,
+        GroupingExpr(BinaryExpr(
+            BinaryExpr(LiteralExpr(2), TokenType.PLUS, LiteralExpr("2")),
+            TokenType.GREATER,
+            LiteralExpr(5)
+        ))
+    ),
+))
+def test_unary_success(
+    text: str,
+    operator: TokenType,
+    expression: Expr
+):
+    parser = create_parser(text + ";")
+    program = parser.parse()
+    unary = program.statements[0]
+    assert isinstance(unary, UnaryExpr)
+    assert unary.operator == operator
+    assert unary.right == expression
+
+
+@pytest.mark.parametrize('text, error', (
+    ("-", MissingExpressionError),
+    ("-;", MissingExpressionError),
+    ("not", MissingExpressionError),
+    ("not;", MissingExpressionError),
+))
+def test_unary_error(text: str, error: type[ParserError]):
+    test_text_raises_error(text, error)
+
+
+@pytest.mark.parametrize('text, left, operator, right', (
+    ('"a"*2', LiteralExpr("a"), TokenType.STAR, LiteralExpr(2)),
+    ("-5/2", UnaryExpr(
+        TokenType.MINUS, LiteralExpr(5)
+        ),
+     TokenType.SLASH, LiteralExpr(2)),
+    ('7 + "2.5"', LiteralExpr(7), TokenType.PLUS, LiteralExpr("2.5")),
+    ('10 - "foo"', LiteralExpr(10), TokenType.MINUS, LiteralExpr("foo")),
+    ("1<=2", LiteralExpr(1), TokenType.LESS_EQUAL, LiteralExpr(2)),
+    ('5<"5"', LiteralExpr(5), TokenType.LESS, LiteralExpr("5")),
+    ('"5">10', LiteralExpr("5"), TokenType.GREATER, LiteralExpr(10)),
+    ('"1000a">=1000',
+     LiteralExpr("1000a"),
+     TokenType.GREATER_EQUAL,
+     LiteralExpr(1000)),
+    ('123==123', LiteralExpr(123), TokenType.EQUAL_EQUAL, LiteralExpr(123)),
+    ('"5"!=5', LiteralExpr("5"), TokenType.BANG_EQUAL, LiteralExpr(5)),
+))
+def test_binary_success(
+    text: str,
+    left: Expr,
+    operator: TokenType,
+    right: Expr
+):
+    parser = create_parser(text + ";")
+    program = parser.parse()
+    binary = program.statements[0]
+    assert isinstance(binary, BinaryExpr)
+    assert binary.left == left
+    assert binary.operator == operator
+    assert binary.right == right
+
+
+@pytest.mark.parametrize('text', (
+    '"7.5"*', '"string"/', "2+", '"7.5"-', '"greater">',
+    '5<', '15>=', '15<=', '-5==', '00.100!='
+))
+def test_binary_error(text: str):
+    test_text_raises_error(text, MissingExpressionError)
+
+
+@pytest.mark.parametrize('text, left, operator, right', (
+    ("true or false", LiteralExpr(True), TokenType.OR, LiteralExpr(False)),
+    ("true and false", LiteralExpr(True), TokenType.AND, LiteralExpr(False)),
+    (
+        "(true and true) or (2 + 2 == 4)",
+        GroupingExpr(
+            LogicalExpr(LiteralExpr(True), TokenType.AND, LiteralExpr(True))
+        ),
+        TokenType.OR,
+        GroupingExpr(
+            BinaryExpr(
+                BinaryExpr(LiteralExpr(2), TokenType.PLUS, LiteralExpr(2)),
+                TokenType.EQUAL_EQUAL,
+                LiteralExpr(4)
+            )
+        )
+    ),
+))
+def test_logical_success(
+    text: str,
+    left: Expr,
+    operator: TokenType,
+    right: Expr
+):
+    parser = create_parser(text + ";")
+    program = parser.parse()
+    logical = program.statements[0]
+    assert isinstance(logical, LogicalExpr)
+    assert logical.left == left
+    assert logical.operator == operator
+    assert logical.right == right
+
+
+@pytest.mark.parametrize('text, error', (
+    ("true or", MissingExpressionError),
+    ("true or;", MissingExpressionError),
+    ("true and", MissingExpressionError),
+    ("true and;", MissingExpressionError),
+))
+def test_logical_error(text: str, error: type[ParserError]):
+    test_text_raises_error(text, error)
+
+
+@pytest.mark.parametrize('text, name, value', (
+    ("x = 5", "x", LiteralExpr(5)),
+    ('name = "John"', "name", LiteralExpr("John")),
+    ('is_true = true and false',
+     "is_true",
+     LogicalExpr(LiteralExpr(True), TokenType.AND, LiteralExpr(False))),
+    ('is_true = true or false and true',
+     "is_true",
+     LogicalExpr(
+        LiteralExpr(True),
+        TokenType.OR,
+        LogicalExpr(LiteralExpr(False), TokenType.AND, LiteralExpr(True))
+     )),
+))
+def test_assignment_success(
+    text: str,
+    name: str,
+    value: Expr
+):
+    parser = create_parser(text + ";")
+    program = parser.parse()
+    assignment = program.statements[0]
+    assert isinstance(assignment, AssignmentExpr)
+    assert assignment.name == name
+    assert assignment.value == value
+
+
+@pytest.mark.parametrize('text, error', (
+    ("x = 5", MissingSemicolonError),
+    ("x = ", MissingExpressionError),
+    ("x = ;", MissingExpressionError),
+))
+def test_assignment_error(text: str, error: type[ParserError]):
+    test_text_raises_error(text, error)
+
+
+@pytest.mark.parametrize('text, name, expression, is_const', (
+    ("var a = 5;", "a", LiteralExpr(5), False),
+    ("const a = 5;", "a", LiteralExpr(5), True),
+    ("var a;", "a", None, False),
+    ("const a;", "a", None, True),
+    ("var S = a*a;", "S",
+     BinaryExpr(IdentifierExpr("a"), TokenType.STAR, IdentifierExpr("a")),
+     False),
+    ("const is_true = true or false;", "is_true",
+     LogicalExpr(LiteralExpr(True), TokenType.OR, LiteralExpr(False)),
+     True),
+))
+def test_variable_declaration_success(
+    text: str,
+    name: str,
+    expression: Expr,
+    is_const: bool
+):
+    parser = create_parser(text)
+    program = parser.parse()
+    variable = program.statements[0]
+    assert isinstance(variable, VariableStmt)
+    assert variable.name == name
+    assert variable.expression == expression
+    assert variable.is_const == is_const
+
+
+@pytest.mark.parametrize("text, error", (
+    ("var = 2;", MissingVariableNameError),
+    ("var a = ;", MissingExpressionError),
+    ("var a = 2", MissingSemicolonError),
+))
+def test_variable_declaration_error(text: str, error: type[ParserError]):
+    test_text_raises_error(text, error)
 
 
 @pytest.mark.parametrize('text, name, params, block', (
@@ -128,6 +411,7 @@ def test_function_declaration_success(
     parser = create_parser(text)
     program = parser.parse()
     function = program.statements[0]
+    assert isinstance(function, FunctionStmt)
     assert function.name == name
     assert function.params == params
     assert function.block == block
@@ -140,51 +424,13 @@ def test_function_declaration_success(
     ("fn sum(a,) {return a+b;}", MissingParameterError),
     ("fn sum(a, const) {return a+b;}", MissingParameterNameError),
     ("fn sum(a, a) {return a+b;}", DuplicateParametersError),
+    ("fn sum(a, b) {return a+b}", MissingSemicolonError),
     ("fn sum(a, b)", MissingFunctionBodyError),
     ("fn sum(a, b) ;", MissingFunctionBodyError),
 
 ))
 def test_function_declaration_error(text: str, error: type[ParserError]):
-    parser = create_parser(text)
-    with pytest.raises(error):
-        parser.parse()
-
-
-@pytest.mark.parametrize('text, name, expression, is_const', (
-    ("var a = 5;", "a", LiteralExpr(5), False),
-    ("const a = 5;", "a", LiteralExpr(5), True),
-    ("var a;", "a", None, False),
-    ("const a;", "a", None, True),
-    ("var S = a*a;", "S",
-     BinaryExpr(IdentifierExpr("a"), TokenType.STAR, IdentifierExpr("a")),
-     False),
-    ("const is_true = true or false;", "is_true",
-     LogicalExpr(LiteralExpr(True), TokenType.OR, LiteralExpr(False)),
-     True),
-))
-def test_variable_declaration_success(
-    text: str,
-    name: str,
-    expression: Expr,
-    is_const: bool
-):
-    parser = create_parser(text)
-    program = parser.parse()
-    variable = program.statements[0]
-    assert variable.name == name
-    assert variable.expression == expression
-    assert variable.is_const == is_const
-
-
-@pytest.mark.parametrize("text, error", (
-    ("var = 2;", MissingVariableNameError),
-    ("var a = ;", MissingExpressionError),
-    ("var a = 2", MissingSemicolonError),
-))
-def test_variable_declaration_error(text: str, error: type[ParserError]):
-    parser = create_parser(text)
-    with pytest.raises(error):
-        parser.parse()
+    test_text_raises_error(text, error)
 
 
 @pytest.mark.parametrize('text, condition, body, body_else', (
@@ -224,6 +470,7 @@ def test_if_success(
     parser = create_parser(text)
     program = parser.parse()
     if_stmt = program.statements[0]
+    assert isinstance(if_stmt, IfStmt)
     assert if_stmt.condition == condition
     assert if_stmt.body == body
     assert if_stmt.body_else == body_else
@@ -233,15 +480,14 @@ def test_if_success(
     ("if true) {return true;}", MissingLeftParenthesisError),
     ("if () {return true;}", MissingIfConditionError),
     ("if (true {return true;}", MissingRightParenthesisError),
+    ("if (true) {return true}", MissingSemicolonError),
     ("if (true);", MissingIfBodyError),
     ("if (true)", MissingIfBodyError),
     ("if (true) {return true;} else;", MissingElseBodyError),
     ("if (true) {return true;} else", MissingElseBodyError),
 ))
 def test_if_error(text: str, error: type[ParserError]):
-    parser = create_parser(text)
-    with pytest.raises(error):
-        parser.parse()
+    test_text_raises_error(text, error)
 
 
 @pytest.mark.parametrize('text, condition, body', (
@@ -279,6 +525,7 @@ def test_while_success(
     parser = create_parser(text)
     program = parser.parse()
     while_stmt = program.statements[0]
+    assert isinstance(while_stmt, WhileStmt)
     assert while_stmt.condition == condition
     assert while_stmt.body == body
 
@@ -287,13 +534,12 @@ def test_while_success(
     ("while true) {i = i + 1;}", MissingLeftParenthesisError),
     ("while ()) {i = i + 1;}", MissingWhileConditionError),
     ("while (true {i = i + 1;}", MissingRightParenthesisError),
+    ("while (true) {i = i + 1}", MissingSemicolonError),
     ("while (true)", MissingWhileBodyError),
     ("while (true);", MissingWhileBodyError),
 ))
 def test_while_error(text: str, error: type[ParserError]):
-    parser = create_parser(text)
-    with pytest.raises(error):
-        parser.parse()
+    test_text_raises_error(text, error)
 
 
 @pytest.mark.parametrize('text, expression', (
@@ -317,6 +563,7 @@ def test_return_success(
     parser = create_parser(text)
     program = parser.parse()
     return_stmt = program.statements[0]
+    assert isinstance(return_stmt, ReturnStmt)
     assert return_stmt.expression == expression
 
 
@@ -326,9 +573,7 @@ def test_return_success(
     ("return a or b or c", MissingSemicolonError),
 ))
 def test_return_error(text: str, error: type[ParserError]):
-    parser = create_parser(text)
-    with pytest.raises(error):
-        parser.parse()
+    test_text_raises_error(text, error)
 
 
 @pytest.mark.parametrize('text, arguments, case_blocks', (
@@ -341,13 +586,15 @@ def test_return_error(text: str, error: type[ParserError]):
         [IdentifierExpr("number")],
         [
             CaseStmt([
-                PatternExpr(ComparePatternExpr(None, LiteralExpr(0)), None)],
+                PatternExpr(ComparePatternExpr(
+                    TokenType.EQUAL_EQUAL, LiteralExpr(0)), None
+                )],
                 None,
                 LiteralExpr("Nothing")),
             CaseStmt([
                 PatternExpr(
                     ComparePatternExpr(
-                        None,
+                        TokenType.EQUAL_EQUAL,
                         UnaryExpr(TokenType.MINUS, LiteralExpr(1))
                     ),
                     None)],
@@ -412,7 +659,9 @@ def test_return_error(text: str, error: type[ParserError]):
                     LogicalExpr(
                         TypePatternExpr(TokenType.NUMBER_TYPE),
                         TokenType.AND,
-                        ComparePatternExpr(None, LiteralExpr(0))
+                        ComparePatternExpr(
+                            TokenType.EQUAL_EQUAL, LiteralExpr(0)
+                        )
                     ), None
                 ),
                 PatternExpr(TypePatternExpr(TokenType.NUMBER_TYPE), None)
@@ -445,6 +694,7 @@ def test_match_success(
     parser = create_parser(text)
     program = parser.parse()
     match_stmt = program.statements[0]
+    assert isinstance(match_stmt, MatchStmt)
     assert match_stmt.arguments == arguments
     assert match_stmt.case_blocks == case_blocks
 
@@ -465,6 +715,7 @@ def test_match_success(
     ('match (a) {(): "x: " + x;}', MissingExpressionError),
     ('match (a) {(_ as x: "x: " + x;}', MissingRightParenthesisError),
     ('match (a) {(_ as x) "x: " + x;}', MissingColonError),
+    ('match (a) {(_ as x): "x: " + x}', MissingSemicolonError),
     ('match (a) {(_ as x):}', MissingCaseBodyError),
     ('match (a) {(_ as x): ;}', MissingCaseBodyError),
 
@@ -476,6 +727,4 @@ def test_match_success(
     ('match (a) {(!= as x): "x: " + x;}', MissingExpressionError),
 ))
 def test_match_error(text: str, error: type[ParserError]):
-    parser = create_parser(text)
-    with pytest.raises(error):
-        parser.parse()
+    test_text_raises_error(text, error)
