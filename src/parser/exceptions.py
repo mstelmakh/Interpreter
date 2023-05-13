@@ -119,7 +119,7 @@ class MissingCaseBodyError(MissingStatementBodyError):
         super().__init__("case", position)
 
 
-class MissingVariableNameError(MissingStatementBodyError):
+class MissingVariableNameError(ParserError):
     def __init__(self, position: Position) -> None:
         super().__init__("Missing variable name", position)
 
