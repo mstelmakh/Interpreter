@@ -278,7 +278,7 @@ def test_try_build_number_float(text: str):
 
 @pytest.mark.parametrize('text', (
         ' while', '=while', '//while', '5while',
-        '"while"', '"string"while', '\nwhile'
+        '"while"', '"string"while', '\nwhile', '_while'
         )
 )
 def test_try_build_ident_or_keyword_fail(text):
@@ -291,8 +291,7 @@ def test_try_build_ident_or_keyword_fail(text):
 
 
 @pytest.mark.parametrize('identifier', (
-        "variable", "orchid", "String", "_String",
-        "_St__53_63_ring___1"
+        "variable", "orchid", "String"
 ))
 def test_try_build_ident_or_keyword_ident(identifier: str):
     text = identifier + "=100"

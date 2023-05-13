@@ -68,7 +68,7 @@ STRING                  = "\"" {CHAR} "\"" ;
 CHAR                    = (any_char - "\"" - "\\")
                         | "\\" escape ;
 ESCAPE                  = "t" | "b" | "r" | "n" | "\"" | "\\" ;
-IDENTIFIER              = ALPHA {ALPHA | DIGIT} ;
+IDENTIFIER              = LETTER {ALPHA | DIGIT} ;
 ALPHA                   = LETTER | "_" ;
 LETTER                  = "a" | "b" | ... | "z" | "A" | "B" | ... | "Z" ;
 DIGIT                   = "0" | DIGIT_NON_ZERO ;
