@@ -57,6 +57,7 @@ class TokenType(Enum):
 
     MATCH = auto()
     AS = auto()
+    UNDERSCORE = auto()
 
     STRING_TYPE = auto()
     NUMBER_TYPE = auto()
@@ -66,6 +67,29 @@ class TokenType(Enum):
 
     EOF = auto()
 
+
+LITERALS = [
+    TokenType.FALSE,
+    TokenType.TRUE,
+    TokenType.NIL,
+    TokenType.NUMBER,
+    TokenType.STRING
+]
+
+TYPES = [
+    TokenType.STRING_TYPE,
+    TokenType.NUMBER_TYPE,
+    TokenType.BOOL_TYPE,
+    TokenType.FUNCTION_TYPE,
+    TokenType.NIL_TYPE
+]
+
+COMPARISON_TYPES = [
+    TokenType.GREATER,
+    TokenType.GREATER_EQUAL,
+    TokenType.LESS,
+    TokenType.LESS_EQUAL
+]
 
 KEYWORDS_MAP = {
     "if": TokenType.IF,
@@ -113,6 +137,7 @@ SINGLE_CHAR_MAP = {
     "<": TokenType.LESS,
     ">": TokenType.GREATER,
     "/": TokenType.SLASH,
+    "_": TokenType.UNDERSCORE
 }
 
 COMMENT_CHAR = "//"

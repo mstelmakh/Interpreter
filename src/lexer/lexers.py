@@ -10,7 +10,7 @@ from lexer.tokens import (
     INDENTATION_CHARS,
     COMMENT_CHAR
 )
-from lexer.utils import is_digit, is_alpha, is_alphanumeric
+from lexer.utils import is_digit, is_letter, is_alphanumeric
 from lexer.streams import Stream
 from lexer.exceptions import (
     UnexpecterCharacterError,
@@ -95,7 +95,7 @@ class Lexer(BaseLexer):
         )
 
     def try_build_ident_or_keyword(self) -> bool:
-        if not is_alpha(self.stream.current_char):
+        if not is_letter(self.stream.current_char):
             return None
         value = []
         while is_alphanumeric(self.stream.current_char):

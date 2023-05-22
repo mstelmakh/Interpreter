@@ -480,7 +480,7 @@ match (number) {
     ("string"): {}
     (nil): {}
     (someFunc()): {}
-    ((someFunc() and 1+1>5 or true) or ==false as result): {}
+    ((someFunc() and 1+1>5 or true) or (==false as result)): {}
 }
 ```
 
@@ -504,7 +504,7 @@ match (input1, input2) {
 
 ```
 match ("John") {
-    (Str as name) if someFunction(name): print("Hello" + name);
+    (Str as name) if (someFunction(name)): print("Hello" + name);
     (_): print("Hello!");
 }
 ```
