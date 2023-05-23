@@ -11,7 +11,8 @@ statement               = declaration
                         | expression_statement
                         | if_statement
                         | while_statement
-                        | return_statement ;
+                        | return_statement
+                        | match_statement ;
 expression_statement    = expression ";" ;
 if_statement            = "if" "(" expression ")" (statement | block) ["else" (statement | block)] ;
 while_statement         = "while" "(" expression ")" (statement | block) ;
@@ -32,7 +33,7 @@ type_pattern            = TYPE ;
 
 (* Expressions *)
 expression              = assignment ;
-assignment              = IDENTIFIER "=" logical_or ;
+assignment              = [IDENTIFIER "="] logical_or;
 logical_or              = logical_and {"or" logical_and} ;
 logical_and             = equality {"and" equality} ;
 equality                = comparison {EQUALITY_SIGN comparison} ;
@@ -67,7 +68,7 @@ STRING                  = "\"" {CHAR} "\"" ;
 CHAR                    = (any_char - "\"" - "\\")
                         | "\\" escape ;
 ESCAPE                  = "t" | "b" | "r" | "n" | "\"" | "\\" ;
-IDENTIFIER              = ALPHA {ALPHA | DIGIT} ;
+IDENTIFIER              = LETTER {ALPHA | DIGIT} ;
 ALPHA                   = LETTER | "_" ;
 LETTER                  = "a" | "b" | ... | "z" | "A" | "B" | ... | "Z" ;
 DIGIT                   = "0" | DIGIT_NON_ZERO ;
