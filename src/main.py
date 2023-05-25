@@ -4,7 +4,9 @@ from lexer.streams import FileStream, TextStream, Stream
 from lexer.lexers import Lexer  # , LexerWithoutComments
 
 from parser.parser import Parser
-from parser.ast_printer import AstPrinter
+# from parser.ast_printer import AstPrinter
+
+from interpreter.interpreter import Interpreter
 
 
 def run_prompt() -> None:
@@ -25,10 +27,9 @@ def run(stream: Stream) -> None:
     # lexer = LexerWithoutComments(lexer)
     parser = Parser(lexer)
     program = parser.parse()
-    program.accept(AstPrinter())
+    # program.accept(AstPrinter())
 
-    # interpreter = Interpreter()
-    # program.accept(interpreter)
+    program.accept(Interpreter())
 
 
 if __name__ == "__main__":
