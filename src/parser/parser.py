@@ -485,11 +485,24 @@ class Parser:
 
     def parse_comparison(self) -> Expr | None:
         # term [COMPARISON_SIGN term]
-        return self._parse_binary(
-            self.parse_term,
-            [TokenType.GREATER, TokenType.GREATER_EQUAL,
-             TokenType.LESS, TokenType.LESS_EQUAL]
-        )
+        expr = self.parse_term()
+        if not expr:
+            return None
+        if any(
+            operator := self.try_consume(token_type)
+            for token_type in [
+                TokenType.GREATER, TokenType.GREATER_EQUAL,
+                TokenType.LESS, TokenType.LESS_EQUAL
+            ]
+        ):
+            right = self.parse_term()
+            if not right:
+                raise MissingExpressionError(
+                    "Missing second expression",
+                    self.current_token.position
+                )
+            expr = BinaryExpr(expr, operator.type, right)
+        return expr
 
     def parse_term(self) -> Expr | None:
         # factor {("-" | "+") factor}
