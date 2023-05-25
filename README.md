@@ -212,8 +212,8 @@ true + false = false + true = 1
 
 // On Numbers
 4 + 6                       = 10
-"5" + 3                     = 53    // "5" is coerced to number
-7 + "2.5"                   = 72.5  // "2.5" is coerced to number
+"5" + 3                     = 8     // "5" is coerced to number
+7 + "2.5"                   = 9.5   // "2.5" is coerced to number
 7 + "2a"                    = "72a" // "2a" can not be coerced to number
 
 // On Functions
@@ -230,6 +230,9 @@ true + false = false + true = 1
 "hello" + "world"           = "helloworld"
 "The answer is: " + 12      = "The answer is: 12"
 "The answer is " + true     = "The answer is true"
+"15" * 2                    = 30    // "15" is coerced to number
+"15" * "2"                  = 30    // "15" and "2" are coerced to numbers
+"15" * "2a"                         // error
 ```
 
 ### Comparison
