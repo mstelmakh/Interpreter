@@ -28,20 +28,24 @@ from parser.models import (
     Parameter
 )
 
-from interpreter.environment import Environment
+from interpreter.models import Environment, Callable, Function
+from interpreter.builtins import PrintFunction
+from interpreter.exceptions import Return
 
 
 class Interpreter(Visitor):
-    def visit_program(self, program: Program):
-        # ? Should environment be initialized in the constructor?
+    def __init__(self):
         self.environment = Environment()
+        self.environment.define("print", PrintFunction())
+
+    def visit_program(self, program: Program):
         for statement in program.statements:
-            value = statement.accept(self)
-            if isinstance(statement, Expr):
-                print(value)
+            self.evaluate(statement)
 
     def visit_assignment_expr(self, expr: AssignmentExpr):
-        pass
+        value = self.evaluate(expr.value)
+        self.environment.assign(expr.name, value)
+        return value
 
     def visit_binary(self, expr: BinaryExpr):
         left = self.evaluate(expr.left)
@@ -174,7 +178,14 @@ class Interpreter(Visitor):
         return None
 
     def visit_logical(self, expr: LogicalExpr):
-        pass
+        left = self.evaluate(expr.left)
+        if expr.operator == TokenType.OR:
+            if self.is_truthy(left):
+                return left
+        else:
+            if not self.is_truthy(left):
+                return left
+        return self.evaluate(expr.right)
 
     def visit_grouping(self, expr: GroupingExpr):
         return self.evaluate(expr.expression)
@@ -183,7 +194,15 @@ class Interpreter(Visitor):
         return self.environment.get(expr.name)
 
     def visit_call(self, expr: CallExpr):
-        pass
+        callee: Callable = self.evaluate(expr.callee)
+        arguments = [self.evaluate(arg) for arg in expr.arguments]
+        if not isinstance(callee, Callable):
+            raise RuntimeError("Can only call functions.")
+        if callee.arity is not None and len(arguments) != callee.arity:
+            raise RuntimeError(
+                f"Expected {callee.arity} arguments but got {len(arguments)}."
+            )
+        return callee.call(self, arguments)
 
     def visit_block_stmt(self, stmt: BlockStmt):
         self.execute_block(stmt.statements, Environment(self.environment))
@@ -198,7 +217,8 @@ class Interpreter(Visitor):
             self.environment = previous
 
     def visit_function_stmt(self, stmt: FunctionStmt):
-        pass
+        function = Function(stmt, self.environment)
+        self.environment.define(stmt.name, function)
 
     def visit_variable_stmt(self, stmt: VariableStmt):
         value = None
@@ -207,13 +227,20 @@ class Interpreter(Visitor):
         self.environment.define(stmt.name, value, stmt.is_const)
 
     def visit_if_stmt(self, stmt: IfStmt):
-        pass
+        if self.is_truthy(self.evaluate(stmt.condition)):
+            self.execute(stmt.body)
+        elif stmt.body_else:
+            self.execute(stmt.body_else)
 
     def visit_while_stmt(self, stmt: WhileStmt):
-        pass
+        while self.is_truthy(self.evaluate(stmt.condition)):
+            self.execute(stmt.body)
 
     def visit_return_stmt(self, stmt: ReturnStmt):
-        pass
+        value = None
+        if stmt.expression is not None:
+            value = self.evaluate(stmt.expression)
+        raise Return(value)
 
     def visit_match_stmt(self, stmt: MatchStmt):
         pass
