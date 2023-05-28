@@ -83,7 +83,7 @@ class IdentifierExpr(Expr):
 
 @dataclass
 class CallExpr(Expr):
-    calee: Expr
+    callee: Expr
     arguments: list[Expr]
 
     def accept(self, visitor: Visitor) -> None:

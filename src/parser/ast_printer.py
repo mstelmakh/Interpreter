@@ -71,7 +71,7 @@ class AstPrinter(Visitor):
 
     @print_type_and_indent
     def visit_call(self, expr: CallExpr):
-        expr.calee.accept(self)
+        expr.callee.accept(self)
         self._print("Arguments")
         self.spaces += 2
         for argument in expr.arguments:
