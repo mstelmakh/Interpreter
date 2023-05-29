@@ -343,7 +343,7 @@ while (a < 10) a = a + 1;
 
 while (a < 20) {
     a = a + 1;
-    print(a)
+    print(a);
 }
 
 ```
@@ -367,7 +367,7 @@ fn getSum(a, b) {
     var outside = a + b;
 
     fn inner() {
-        return outside + 1
+        return outside + 1;
     }
 
     return inner();
@@ -377,7 +377,7 @@ fn wrapper(a) {
     return a;
 }
 
-wrapper(getSum)(5, 3)   // returns 9
+wrapper(getSum)(5, 3);   // returns 9
 ```
 
 #### Recursion
@@ -391,6 +391,7 @@ fn fib(const n) {
 var i = 0;
 while (i < 20) {
     print(fib(i));
+    i = i + 1;
 }
 ```
 
@@ -424,6 +425,7 @@ fn add(value) {
     fn inner() {
         value = 2;
     }
+    inner();
     print(value);           // 2
     b = 1;                  // Error (b not declared)
 }
@@ -448,7 +450,7 @@ match (2+2) {
    }
 }
 
-print(number)                                 // error (number is unbound)
+print(number);                                 // error (number is unbound)
 ```
 
 ```
