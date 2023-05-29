@@ -243,7 +243,48 @@ class Interpreter(Visitor):
         raise Return(value)
 
     def visit_match_stmt(self, stmt: MatchStmt):
-        pass
+        arguments = [self.evaluate(arg) for arg in stmt.arguments]
+        for case in stmt.case_blocks:
+            if not len(case.patterns) == len(arguments):
+                raise RuntimeError("Number of arguments does not match.")
+            if (
+                all([
+                    self._evaluate_pattern(pattern, arg)
+                    for pattern, arg in zip(case.patterns, arguments)
+                ])
+                and (case.guard is None or self.evaluate(case.guard))
+            ):
+                previous = self.environment
+                environment = Environment(self.environment)
+                for pattern, arg in zip(case.patterns, arguments):
+                    if pattern.name is not None:
+                        environment.define(pattern.name, arg)
+                self.environment = environment
+                self.execute(case.body)
+                self.environment = previous
+                break
+
+    def _evaluate_pattern(self, pattern: PatternExpr, value):
+        pattern = pattern.pattern
+        if pattern and isinstance(pattern, TypePatternExpr):
+            if pattern.type == TokenType.STRING_TYPE:
+                return isinstance(value, str)
+            if pattern.type == TokenType.NUMBER_TYPE:
+                return isinstance(value, (int, float))
+            if pattern.type == TokenType.BOOL_TYPE:
+                return isinstance(value, bool)
+            if pattern.type == TokenType.NIL_TYPE:
+                return value is None
+            raise RuntimeError("Invalid type.")
+        if pattern and isinstance(pattern, ComparePatternExpr):
+            return self._evaluate_binary_comparison(
+                value,
+                pattern.right,
+                pattern.operator
+            )
+        if not pattern:
+            return True
+        raise RuntimeError("Invalid pattern.")
 
     def visit_case_stmt(self, stmt: CaseStmt):
         pass
