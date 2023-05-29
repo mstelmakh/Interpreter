@@ -29,8 +29,10 @@ from parser.models import (
 )
 
 from interpreter.models import Environment, Callable, Function
-from interpreter.builtins import PrintFunction
+from interpreter.stdlib import PrintFunction
 from interpreter.exceptions import Return
+
+Literal = int | float | str | bool | None
 
 
 class Interpreter(Visitor):
@@ -94,14 +96,16 @@ class Interpreter(Visitor):
                 # 15 + "2"
                 return left + new_right
             # 15 + "hello"
-            return str(left) + right
+            # 15 + print
+            return str(left) + str(right)
         if self.try_cast_to_number(right):
             new_left = self.try_cast_to_number(left)
             if new_left is not None:
                 # "2" + 15
                 return new_left + right
             # "hello" + 15
-            return left + str(right)
+            # print + 15
+            return str(left) + str(right)
         left = self.try_cast_to_number(left)
         right = self.try_cast_to_number(right)
         return left + right
@@ -122,12 +126,14 @@ class Interpreter(Visitor):
 
     def _evaluate_binary_comparison(
             self,
-            left,
-            right,
+            left: Literal | Function,
+            right: Literal | Function,
             operator_type: TokenType
     ):
+        # TODO: function and string comparison
+        # TODO: function comparison
         if type(left) != type(right):
-            if isinstance(left, str):
+            if isinstance(left, (str, Function)):
                 new_left = self.try_cast_to_number(left)
                 right = self.try_cast_to_number(right)
                 if new_left is not None:
@@ -135,8 +141,10 @@ class Interpreter(Visitor):
                     left = new_left
                 else:
                     # "hello" < 5
+                    # print < 5
+                    left = str(left)
                     right = str(right)
-            elif isinstance(right, str):
+            elif isinstance(right, (str, Function)):
                 left = self.try_cast_to_number(left)
                 new_right = self.try_cast_to_number(right)
                 if new_right is not None:
@@ -144,7 +152,9 @@ class Interpreter(Visitor):
                     right = new_right
                 else:
                     # 5 < "hello"
+                    # 5 < print
                     left = str(left)
+                    right = str(right)
             else:
                 left = self.try_cast_to_number(left)
                 right = self.try_cast_to_number(right)
@@ -218,7 +228,7 @@ class Interpreter(Visitor):
 
     def visit_function_stmt(self, stmt: FunctionStmt):
         function = Function(stmt, self.environment)
-        self.environment.define(stmt.name, function)
+        self.environment.define_function(stmt.name, function)
 
     def visit_variable_stmt(self, stmt: VariableStmt):
         value = None
@@ -249,7 +259,7 @@ class Interpreter(Visitor):
                 raise RuntimeError("Number of arguments does not match.")
             if (
                 all([
-                    self._evaluate_pattern(pattern, arg)
+                    self._evaluate_pattern(pattern.pattern, arg)
                     for pattern, arg in zip(case.patterns, arguments)
                 ])
                 and (case.guard is None or self.evaluate(case.guard))
@@ -264,8 +274,16 @@ class Interpreter(Visitor):
                 self.environment = previous
                 break
 
-    def _evaluate_pattern(self, pattern: PatternExpr, value):
-        pattern = pattern.pattern
+    def _evaluate_pattern(self, pattern: Expr, value: Literal) -> bool:
+        if isinstance(pattern, LogicalExpr):
+            left = self._evaluate_pattern(pattern.left, value)
+            if pattern.operator == TokenType.OR:
+                if self.is_truthy(left):
+                    return True
+            else:
+                if not self.is_truthy(left):
+                    return False
+            return self._evaluate_pattern(pattern.right, value)
         if pattern and isinstance(pattern, TypePatternExpr):
             if pattern.type == TokenType.STRING_TYPE:
                 return isinstance(value, str)
@@ -279,7 +297,7 @@ class Interpreter(Visitor):
         if pattern and isinstance(pattern, ComparePatternExpr):
             return self._evaluate_binary_comparison(
                 value,
-                pattern.right,
+                self.evaluate(pattern.right),
                 pattern.operator
             )
         if not pattern:
@@ -304,7 +322,7 @@ class Interpreter(Visitor):
     def visit_parameter(self, parameter: Parameter):
         pass
 
-    def is_truthy(self, value: str | int | float | bool | None):
+    def is_truthy(self, value: Literal) -> bool:
         if not value:
             return False
         return True
@@ -315,10 +333,13 @@ class Interpreter(Visitor):
     def evaluate(self, expr: Expr):
         return expr.accept(self)
 
-    def is_number(self, value: str | int | float | bool | None):
+    def is_number(self, value: Literal | Function) -> bool:
         return type(value) == int or type(value) == float
 
-    def try_cast_to_number(self, value: str | int | float | bool | None):
+    def try_cast_to_number(
+            self,
+            value: Literal | Function
+    ) -> int | float | None:
         if isinstance(value, float) or isinstance(value, int):
             return value
         if not value or value is False:
@@ -330,4 +351,6 @@ class Interpreter(Visitor):
                 return None
         if value is True:
             return 1
+        if isinstance(value, Function):
+            return self.try_cast_to_number(value.declaration.name)
         return None

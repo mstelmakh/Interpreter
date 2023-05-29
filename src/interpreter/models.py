@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from parser.models import FunctionStmt
 from interpreter.exceptions import Return
 
@@ -11,6 +13,12 @@ class Environment:
         if name in self._values:
             raise RuntimeError(f"Variable '{name}' already defined.")
         self._values[name] = {"value": value, "is_const": is_const}
+
+    def define_function(self, name: str, function: Function) -> None:
+        if name in self._values:
+            self.assign(name, function)
+        else:
+            self.define(name, function)
 
     def get(self, name: str) -> any:
         if name in self._values:
@@ -62,3 +70,6 @@ class Function(Callable):
         except Return as return_value:
             return return_value.value
         return None
+
+    def __str__(self):
+        return self.declaration.name

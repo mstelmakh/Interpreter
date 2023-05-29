@@ -1,4 +1,4 @@
-from interpreter.models import Callable
+from interpreter.models import Callable, Function
 
 
 class PrintFunction(Callable):
@@ -17,4 +17,6 @@ class PrintFunction(Callable):
             return "true"
         if value is False:
             return "false"
+        if isinstance(value, Function):
+            return f"<function:{value.declaration.name}>"
         return str(value)
