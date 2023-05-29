@@ -60,11 +60,10 @@ from typing import Callable
 
 
 class Parser:
-    # TODO: Handle Comments
     def __init__(self, lexer: BaseLexer):
         self.lexer = lexer
-        self.current_token = self.lexer.next_token()
         self.queue = []
+        self.next_token()
 
     def parse_statement(self) -> Stmt | None:
         # declaration | expression_statement | if_statement |
@@ -651,3 +650,5 @@ class Parser:
             self.current_token = self.queue.pop(0)
         else:
             self.current_token = self.lexer.next_token()
+        if self.current_token.type == TokenType.COMMENT:
+            self.next_token()
