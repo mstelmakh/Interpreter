@@ -1,7 +1,11 @@
-from interpreter.models import Callable, Function
+from interpreter.models import Callable, UserDefinedFunction
 
 
 class PrintFunction(Callable):
+    @property
+    def name(self):
+        return "print"
+
     @property
     def arity(self):
         return None
@@ -17,6 +21,6 @@ class PrintFunction(Callable):
             return "true"
         if value is False:
             return "false"
-        if isinstance(value, Function):
+        if isinstance(value, UserDefinedFunction):
             return f"<function:{value.declaration.name}>"
         return str(value)

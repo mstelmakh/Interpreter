@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from parser.models import FunctionStmt
-from interpreter.exceptions import Return
+from interpreter.exceptions import (
+    Return,
+    UndefinedVariableError,
+    ConstantRedefinitionError,
+    RedefinitionError
+)
 
 
 class Environment:
@@ -11,10 +16,11 @@ class Environment:
 
     def define(self, name: str, value: any, is_const: bool = False) -> None:
         if name in self._values:
-            raise RuntimeError(f"Variable '{name}' already defined.")
+            raise RedefinitionError(name, position=None)
         self._values[name] = {"value": value, "is_const": is_const}
 
-    def define_function(self, name: str, function: Function) -> None:
+    def define_function(self, function: Callable) -> None:
+        name = function.name
         if name in self._values:
             self.assign(name, function)
         else:
@@ -25,22 +31,24 @@ class Environment:
             return self._values[name]["value"]
         if self.enclosing:
             return self.enclosing.get(name)
-        raise RuntimeError(f"Undefined variable '{name}'.")
+        raise UndefinedVariableError(name, position=None)
 
     def assign(self, name: str, value: any) -> None:
         if name in self._values:
             if self._values[name]["is_const"]:
-                raise RuntimeError(
-                    f"Cannot assign to constant variable '{name}'."
-                )
+                raise ConstantRedefinitionError(name, position=None)
             self._values[name]["value"] = value
         elif self.enclosing:
             self.enclosing.assign(name, value)
         else:
-            raise RuntimeError(f"Undefined variable '{name}'.")
+            raise UndefinedVariableError(name, position=None)
 
 
 class Callable:
+    @property
+    def name(self):
+        raise NotImplementedError()
+
     @property
     def arity(self):
         raise NotImplementedError()
@@ -48,11 +56,18 @@ class Callable:
     def call(self, interpreter, arguments):
         raise NotImplementedError()
 
+    def __str__(self):
+        return self.name
 
-class Function(Callable):
+
+class UserDefinedFunction(Callable):
     def __init__(self, declaration: FunctionStmt, closure: Environment):
         self.declaration = declaration
         self.closure = closure
+
+    @property
+    def name(self):
+        return self.declaration.name
 
     @property
     def arity(self):
@@ -70,6 +85,3 @@ class Function(Callable):
         except Return as return_value:
             return return_value.value
         return None
-
-    def __str__(self):
-        return self.declaration.name
