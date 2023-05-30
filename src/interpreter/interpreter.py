@@ -28,17 +28,27 @@ from parser.models import (
     Parameter
 )
 
-from interpreter.models import Environment, Callable, Function
+from interpreter.models import Environment, Callable, UserDefinedFunction
 from interpreter.stdlib import PrintFunction
-from interpreter.exceptions import Return
+from interpreter.exceptions import (
+    Return,
+    NumberConversionError,
+    UndefinedVariableError,
+    UndefinedFunctionError,
+    RedefinitionError,
+    ConstantRedefinitionError,
+    DivisionByZeroError,
+    InvalidArgumentNumberError
+)
 
 Literal = int | float | str | bool | None
 
 
+# TODO: Position in exceptions
 class Interpreter(Visitor):
     def __init__(self):
         self.environment = Environment()
-        self.environment.define("print", PrintFunction())
+        self.environment.define_function(PrintFunction())
 
     def visit_program(self, program: Program):
         for statement in program.statements:
@@ -46,13 +56,15 @@ class Interpreter(Visitor):
 
     def visit_assignment_expr(self, expr: AssignmentExpr):
         value = self.evaluate(expr.value)
-        self.environment.assign(expr.name, value)
-        return value
+        try:
+            self.environment.assign(expr.name, value)
+            return value
+        except (UndefinedVariableError, ConstantRedefinitionError) as e:
+            raise e.__class__(expr.name, position=expr.position)
 
     def visit_binary(self, expr: BinaryExpr):
         left = self.evaluate(expr.left)
         right = self.evaluate(expr.right)
-
         match expr.operator:
             case TokenType.MINUS:
                 return self._evaluate_binary_minus(left, right)
@@ -75,65 +87,73 @@ class Interpreter(Visitor):
                     right,
                     expr.operator
                 )
-        return None
 
     def _evaluate_binary_minus(self, left, right):
-        left = self.try_cast_to_number(left)
-        right = self.try_cast_to_number(right)
-        if left is not None and right is not None:
-            return left - right
-        raise RuntimeError("Operands must be coercible to numbers.")
+        new_left = self.try_cast_to_number(left)
+        new_right = self.try_cast_to_number(right)
+        if new_left is not None and new_right is not None:
+            return new_left - new_right
+        raise NumberConversionError(left if new_left is None else right, None)
 
     def _evaluate_binary_plus(self, left, right):
-        if (
-            (isinstance(left, str) and isinstance(right, str)) or
-            (self.is_number(left) and self.is_number(right))
-        ):
-            return left + right
-        if self.try_cast_to_number(left):
-            new_right = self.try_cast_to_number(right)
-            if new_right is not None:
-                # 15 + "2"
-                return left + new_right
-            # 15 + "hello"
-            # 15 + print
-            return str(left) + str(right)
-        if self.try_cast_to_number(right):
-            new_left = self.try_cast_to_number(left)
-            if new_left is not None:
-                # "2" + 15
-                return new_left + right
-            # "hello" + 15
-            # print + 15
-            return str(left) + str(right)
-        left = self.try_cast_to_number(left)
-        right = self.try_cast_to_number(right)
+        left, right = self._cast_plus_operands_to_common_type(left, right)
         return left + right
 
+    def _cast_plus_operands_to_common_type(self, left, right):
+        if (new_left := self.try_cast_to_number(left)) is not None:
+            new_right = self.try_cast_to_number(right)
+            if new_right is not None:
+                return new_left, new_right
+        if (new_right := self.try_cast_to_number(right)) is not None:
+            new_left = self.try_cast_to_number(left)
+            if new_left is not None:
+                return new_left, new_right
+        return self.cast_to_str(left), self.cast_to_str(right)
+
     def _evaluate_binary_multiply(self, left, right):
-        left = self.try_cast_to_number(left)
-        right = self.try_cast_to_number(right)
-        if left is not None and right is not None:
-            return left * right
-        raise RuntimeError("Operands must be coercible to numbers.")
+        new_left = self.try_cast_to_number(left)
+        new_right = self.try_cast_to_number(right)
+        if new_left is not None and new_right is not None:
+            return new_left * new_right
+        raise NumberConversionError(left if new_left is None else right, None)
 
     def _evaluate_binary_divide(self, left, right):
-        left = self.try_cast_to_number(left)
-        right = self.try_cast_to_number(right)
-        if left is not None and right is not None:
-            return left / right
-        raise RuntimeError("Operands must be coercible to numbers.")
+        new_left = self.try_cast_to_number(left)
+        new_right = self.try_cast_to_number(right)
+        if new_left is not None and new_right is not None:
+            if new_right == 0:
+                raise DivisionByZeroError(None)
+            return new_left / new_right
+        raise NumberConversionError(left if new_left is None else right, None)
 
     def _evaluate_binary_comparison(
             self,
-            left: Literal | Function,
-            right: Literal | Function,
+            left: Literal | UserDefinedFunction,
+            right: Literal | UserDefinedFunction,
             operator_type: TokenType
     ):
+        left, right = self._cast_comparison_operands_to_common_type(
+            left,
+            right
+        )
+        if operator_type == TokenType.GREATER_EQUAL:
+            return left >= right
+        if operator_type == TokenType.GREATER:
+            return left > right
+        if operator_type == TokenType.LESS_EQUAL:
+            return left <= right
+        if operator_type == TokenType.LESS:
+            return left < right
+        if operator_type == TokenType.EQUAL_EQUAL:
+            return left == right
+        if operator_type == TokenType.BANG_EQUAL:
+            return left != right
+
+    def _cast_comparison_operands_to_common_type(self, left, right):
         # TODO: function and string comparison
         # TODO: function comparison
         if type(left) != type(right):
-            if isinstance(left, (str, Function)):
+            if isinstance(left, (str, UserDefinedFunction)):
                 new_left = self.try_cast_to_number(left)
                 right = self.try_cast_to_number(right)
                 if new_left is not None:
@@ -144,7 +164,7 @@ class Interpreter(Visitor):
                     # print < 5
                     left = str(left)
                     right = str(right)
-            elif isinstance(right, (str, Function)):
+            elif isinstance(right, (str, UserDefinedFunction)):
                 left = self.try_cast_to_number(left)
                 new_right = self.try_cast_to_number(right)
                 if new_right is not None:
@@ -158,19 +178,7 @@ class Interpreter(Visitor):
             else:
                 left = self.try_cast_to_number(left)
                 right = self.try_cast_to_number(right)
-        if operator_type == TokenType.GREATER_EQUAL:
-            return left >= right
-        if operator_type == TokenType.GREATER:
-            return left > right
-        if operator_type == TokenType.LESS_EQUAL:
-            return left <= right
-        if operator_type == TokenType.LESS:
-            return left < right
-        if operator_type == TokenType.EQUAL_EQUAL:
-            return left == right
-        if operator_type == TokenType.BANG_EQUAL:
-            return left != right
-        raise RuntimeError("Operator must be a comparison operator.")
+        return left, right
 
     def visit_literal(self, expr: LiteralExpr):
         return expr.value
@@ -179,10 +187,10 @@ class Interpreter(Visitor):
         right = self.evaluate(expr.right)
         match expr.operator:
             case TokenType.MINUS:
-                right = self.try_cast_to_number(right)
-                if right:
-                    return -right
-                raise RuntimeError("Operand must be coercible to number.")
+                new_right = self.try_cast_to_number(right)
+                if new_right is not None:
+                    return -new_right
+                raise NumberConversionError(right, expr.position)
             case TokenType.NOT:
                 return not self.is_truthy(right)
         return None
@@ -201,16 +209,22 @@ class Interpreter(Visitor):
         return self.evaluate(expr.expression)
 
     def visit_identifier(self, expr: IdentifierExpr):
-        return self.environment.get(expr.name)
+        try:
+            return self.environment.get(expr.name)
+        except UndefinedVariableError:
+            raise UndefinedVariableError(expr.name, expr.position)
 
     def visit_call(self, expr: CallExpr):
-        callee: Callable = self.evaluate(expr.callee)
+        callee = self.evaluate(expr.callee)
         arguments = [self.evaluate(arg) for arg in expr.arguments]
         if not isinstance(callee, Callable):
-            raise RuntimeError("Can only call functions.")
+            raise UndefinedFunctionError(callee, expr.position)
         if callee.arity is not None and len(arguments) != callee.arity:
-            raise RuntimeError(
-                f"Expected {callee.arity} arguments but got {len(arguments)}."
+            raise InvalidArgumentNumberError(
+                callee.name,
+                callee.arity,
+                len(arguments),
+                expr.position
             )
         return callee.call(self, arguments)
 
@@ -227,14 +241,20 @@ class Interpreter(Visitor):
             self.environment = previous
 
     def visit_function_stmt(self, stmt: FunctionStmt):
-        function = Function(stmt, self.environment)
-        self.environment.define_function(stmt.name, function)
+        function = UserDefinedFunction(stmt, self.environment)
+        try:
+            self.environment.define_function(function)
+        except ConstantRedefinitionError:
+            raise ConstantRedefinitionError(stmt.name, stmt.position)
 
     def visit_variable_stmt(self, stmt: VariableStmt):
         value = None
         if stmt.expression:
             value = self.evaluate(stmt.expression)
-        self.environment.define(stmt.name, value, stmt.is_const)
+        try:
+            self.environment.define(stmt.name, value, stmt.is_const)
+        except RedefinitionError:
+            raise RedefinitionError(stmt.name, stmt.position)
 
     def visit_if_stmt(self, stmt: IfStmt):
         if self.is_truthy(self.evaluate(stmt.condition)):
@@ -256,7 +276,12 @@ class Interpreter(Visitor):
         arguments = [self.evaluate(arg) for arg in stmt.arguments]
         for case in stmt.case_blocks:
             if not len(case.patterns) == len(arguments):
-                raise RuntimeError("Number of arguments does not match.")
+                raise InvalidArgumentNumberError(
+                    "case",
+                    len(arguments),
+                    len(case.patterns),
+                    stmt.position
+                )
             if (
                 all([
                     self._evaluate_pattern(pattern.pattern, arg)
@@ -284,25 +309,9 @@ class Interpreter(Visitor):
                 if not self.is_truthy(left):
                     return False
             return self._evaluate_pattern(pattern.right, value)
-        if pattern and isinstance(pattern, TypePatternExpr):
-            if pattern.type == TokenType.STRING_TYPE:
-                return isinstance(value, str)
-            if pattern.type == TokenType.NUMBER_TYPE:
-                return isinstance(value, (int, float))
-            if pattern.type == TokenType.BOOL_TYPE:
-                return isinstance(value, bool)
-            if pattern.type == TokenType.NIL_TYPE:
-                return value is None
-            raise RuntimeError("Invalid type.")
-        if pattern and isinstance(pattern, ComparePatternExpr):
-            return self._evaluate_binary_comparison(
-                value,
-                self.evaluate(pattern.right),
-                pattern.operator
-            )
         if not pattern:
             return True
-        raise RuntimeError("Invalid pattern.")
+        return self.evaluate(pattern)(value)
 
     def visit_case_stmt(self, stmt: CaseStmt):
         pass
@@ -314,10 +323,25 @@ class Interpreter(Visitor):
         pass
 
     def visit_compare_pattern_expr(self, stmt: ComparePatternExpr):
-        pass
+        def _evaluate_compare_pattern(value: Literal) -> bool:
+            return self._evaluate_binary_comparison(
+                value,
+                self.evaluate(stmt.right),
+                stmt.operator
+            )
+        return _evaluate_compare_pattern
 
     def visit_type_pattern_expr(self, stmt: TypePatternExpr):
-        pass
+        def _evaluate_type_pattern(value: Literal) -> bool:
+            if stmt.type == TokenType.STRING_TYPE:
+                return isinstance(value, str)
+            if stmt.type == TokenType.NUMBER_TYPE:
+                return isinstance(value, (int, float))
+            if stmt.type == TokenType.BOOL_TYPE:
+                return isinstance(value, bool)
+            if stmt.type == TokenType.NIL_TYPE:
+                return value is None
+        return _evaluate_type_pattern
 
     def visit_parameter(self, parameter: Parameter):
         pass
@@ -333,12 +357,12 @@ class Interpreter(Visitor):
     def evaluate(self, expr: Expr):
         return expr.accept(self)
 
-    def is_number(self, value: Literal | Function) -> bool:
+    def is_number(self, value: Literal | UserDefinedFunction) -> bool:
         return type(value) == int or type(value) == float
 
     def try_cast_to_number(
             self,
-            value: Literal | Function
+            value: Literal | UserDefinedFunction
     ) -> int | float | None:
         if isinstance(value, float) or isinstance(value, int):
             return value
@@ -351,6 +375,15 @@ class Interpreter(Visitor):
                 return None
         if value is True:
             return 1
-        if isinstance(value, Function):
-            return self.try_cast_to_number(value.declaration.name)
+        if isinstance(value, Callable):
+            return self.try_cast_to_number(value.name)
         return None
+
+    def cast_to_str(self, value: Literal | UserDefinedFunction):
+        if value is None:
+            return "nil"
+        if value is True:
+            return "true"
+        if value is False:
+            return "false"
+        return str(value)
