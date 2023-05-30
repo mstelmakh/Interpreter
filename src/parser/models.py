@@ -1,8 +1,9 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
 from lexer.tokens import TokenType
+from lexer.streams import Position
 
 
 @dataclass
@@ -13,10 +14,18 @@ class Program:
         return visitor.visit_program(self)
 
 
-class Expr(ABC):
+@dataclass(kw_only=True)
+class Stmt(ABC):
+    position: Position | None = field(default=None, compare=False, repr=False)
+
     @abstractmethod
     def accept(self, visitor: Visitor) -> None:
         pass
+
+
+@dataclass(kw_only=True)
+class Expr(Stmt):
+    pass
 
 
 @dataclass
@@ -88,12 +97,6 @@ class CallExpr(Expr):
 
     def accept(self, visitor: Visitor) -> None:
         return visitor.visit_call(self)
-
-
-class Stmt(ABC):
-    @abstractmethod
-    def accept(self, visitor: Visitor) -> None:
-        pass
 
 
 @dataclass
