@@ -23,4 +23,6 @@ class PrintFunction(Callable):
             return "false"
         if isinstance(value, UserDefinedFunction):
             return f"<function:{value.declaration.name}>"
+        if isinstance(value, Callable):
+            return f"<function:{value.name}>"
         return str(value)
