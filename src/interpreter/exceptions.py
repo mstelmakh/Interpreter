@@ -1,15 +1,20 @@
 from lexer.streams import Position
 
 
-class Return(Exception):
-    def __init__(self, value: str | int | float | bool | None):
-        self.value = value
-
-
 class RuntimeError(Exception):
     def __init__(self, message: str, position: Position):
         super().__init__(message)
         self.position = position
+
+
+class Return(RuntimeError):
+    def __init__(
+            self,
+            value: str | int | float | bool | None,
+            position: Position
+    ):
+        self.value = value
+        super().__init__(None, position)
 
 
 class UndefinedVariableError(RuntimeError):
