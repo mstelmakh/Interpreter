@@ -1,0 +1,56 @@
+fn should_buy(price) {
+    return price < 1.5;
+}
+
+fn should_sell(price) {
+    return price >= 1.7;
+}
+
+fn try_buy(n) {
+    var total_price = price * n;
+    if (balance_money >= total_price) {
+        balance_money = balance_money - total_price;
+        balance_stock = balance_stock + n;
+        return true;
+    }
+    return false;
+}
+
+fn try_sell(n) {
+    if (balance_stock >= n) {
+        balance_stock = balance_stock - n;
+        balance_money = balance_money + price * n;
+        return true;
+    }
+    return false;
+}
+
+fn print_balance() {
+    print("Money balance: " + balance_money + "$");
+    print("Stock balance: " + balance_stock);
+}
+
+var balance_money = 1234;
+var balance_stock = 35;
+var price = 1.8;
+
+
+if (should_buy(price)) {
+    print("Should buy");
+    var n = 55;
+    if (try_buy(n)) {
+        print("Bought " + n + " stocks for " + price*n + "$");
+        print_balance();
+    }
+    else print("Not enough money to buy " + n + "stocks.");
+}
+
+if (should_sell(price)) {
+    print("Should sell");
+    var n = 30;
+    if (try_sell(n)) {
+        print("Sold " + n + " stocks for " + price*n + "$");
+        print_balance();
+    }
+    else print("Not enough stocks");
+}

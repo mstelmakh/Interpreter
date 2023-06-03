@@ -1,0 +1,29 @@
+fn add(a, b) {
+    return a + b;
+}
+
+print(add(1, 2));                                   // 3
+
+fn nested(const a, b) {
+  fn inner(const c, d) {
+    return a + b + c + d;
+  }
+  return inner;
+}
+
+print(nested(1, 2)(3, 4));                          // 10
+
+fn nothing() {}
+
+print(nothing());                                     // nil
+
+fn fib(const n) {
+    if (n <= 1) return n;
+    return fib(n - 2) + fib(n - 1);
+}
+
+var i = 0;
+while (i < 10) {
+    print(fib(i));
+    i = i + 1;
+}
