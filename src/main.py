@@ -27,6 +27,7 @@ def run_file(path: str) -> None:
 
 
 def run(stream: Stream) -> None:
+    error_handler = ErrorHandler()
     try:
         lexer = Lexer(stream)
         # lexer = LexerWithoutComments(lexer)
@@ -36,11 +37,11 @@ def run(stream: Stream) -> None:
 
         program.accept(Interpreter())
     except LexerError as e:
-        ErrorHandler().handle_lexer_error(e)
+        error_handler.handle_lexer_error(e)
     except ParserError as e:
-        ErrorHandler().handle_parser_error(e)
+        error_handler.handle_parser_error(e)
     except RuntimeError as e:
-        ErrorHandler().handle_runtime_error(e)
+        error_handler.handle_runtime_error(e)
 
 
 if __name__ == "__main__":
