@@ -1,6 +1,6 @@
 import pytest
 
-from interpreter.tests.utils import create_program
+from interpreter.tests.utils import create_program, test_text_raises_error
 
 from interpreter.interpreter import Interpreter
 from interpreter.exceptions import (
@@ -157,10 +157,7 @@ def test_binary(text, expected_result):
     )
 )
 def test_binary_error(text, expected_error):
-    program = create_program(text + ";")
-    interpreter = Interpreter()
-    with pytest.raises(expected_error):
-        program.statements[0].accept(interpreter)
+    test_text_raises_error(text + ";", expected_error)
 
 
 @pytest.mark.parametrize(
@@ -187,10 +184,7 @@ def test_unary(text, expected_result):
     )
 )
 def test_unary_error(text, expected_error):
-    program = create_program(text + ";")
-    interpreter = Interpreter()
-    with pytest.raises(expected_error):
-        program.statements[0].accept(interpreter)
+    test_text_raises_error(text + ";", expected_error)
 
 
 @pytest.mark.parametrize(
@@ -212,45 +206,142 @@ def test_logical(text, expected_result):
     assert result == expected_result
 
 
-def test_grouping():
-    pass
+@pytest.mark.parametrize(
+    "initializer, expected_name, expected_value", (
+        ("a = 1", "a", 1), ("a = 1.0", "a", 1.0), ('a = "1"', "a", "1"),
+        ("a = true", "a", True), ("a = false", "a", False),
+        ("a = nil", "a", None), ('a = "a"', "a", "a"), ('a = ""', "a", ""),
+        ('someValue = "hello\\tworld"', "someValue", "hello\tworld"),
+        ('var2 = "hello\\nworld"', "var2", "hello\nworld"),
+        ('new_var = "hello\\rworld"', "new_var", "hello\rworld"),
+        ('VAR = "hello\\\\world"', "VAR", "hello\\world"),
+    )
+)
+def test_define_variable(initializer, expected_name, expected_value):
+    text = f"var {initializer};"
+    program = create_program(text)
+    interpreter = Interpreter()
+    program.accept(interpreter)
+    assert interpreter.environment.get(expected_name) == expected_value
+
+
+@pytest.mark.parametrize(
+    "initializer, expected_name, expected_value", (
+        ("a = 1", "a", 1), ("a = 1.0", "a", 1.0), ('a = "1"', "a", "1"),
+        ("a = true", "a", True), ("a = false", "a", False),
+        ("a = nil", "a", None), ('a = "a"', "a", "a"), ('a = ""', "a", ""),
+        ('someValue = "hello\\tworld"', "someValue", "hello\tworld"),
+        ('var2 = "hello\\nworld"', "var2", "hello\nworld"),
+        ('new_var = "hello\\rworld"', "new_var", "hello\rworld"),
+        ('VAR = "hello\\\\world"', "VAR", "hello\\world"),
+        ('CONST = "hello\\\\world"', "CONST", "hello\\world"),
+    )
+)
+def test_define_variable_const(initializer, expected_name, expected_value):
+    text = f"const {initializer};"
+    program = create_program(text)
+    interpreter = Interpreter()
+    program.accept(interpreter)
+    assert interpreter.environment.get(expected_name) == expected_value
+
+
+@pytest.mark.parametrize(
+    "text, expected_error", (
+        ("var a = 1; var a = 2;", RedefinitionError),
+        ("var a = 1; const a = 2;", RedefinitionError),
+        ("const a = 1; var a = 2;", RedefinitionError),
+        ("const a = 1; a = 2;", ConstantRedefinitionError),
+        ("const a = 1; fn a() {}", ConstantRedefinitionError),
+    )
+)
+def test_define_variable_error(text, expected_error):
+    test_text_raises_error(text, expected_error)
 
 
 def test_get_variable():
-    pass
+    text = "var a = 1; a;"
+    program = create_program(text)
+    interpreter = Interpreter()
+    program.statements[0].accept(interpreter)
+    result = program.statements[1].accept(interpreter)
+    assert result == 1
 
 
 def test_get_variable_error():
-    pass
+    test_text_raises_error("a;", UndefinedVariableError)
 
 
-def test_define_variable():
-    pass
+@pytest.mark.parametrize(
+    "text, name, expected_value", (
+        ("a = 2;", "a", 2), ("a = 2.0;", "a", 2.0),
+        ("a = true;", "a", True), ("a = false;", "a", False),
+        ("a = nil;", "a", None), ('a = "a";', "a", "a"),
+        ('a = "";', "a", ""), ('a = "hello\\tworld";', "a", "hello\tworld"),
+        ('someVar = 2 + 2;', "someVar", 4),
+        ('result = nil or false or 2;', "result", 2),
+    )
+)
+def test_assign_variable(text, name, expected_value):
+    text = f"var {name}; " + text
+    program = create_program(text)
+    interpreter = Interpreter()
+    program.accept(interpreter)
+    assert interpreter.environment.get(name) == expected_value
 
 
-def test_define_variable_error():
-    pass
+@pytest.mark.parametrize(
+    "text, expected_error", (
+        ("a = 2;", UndefinedVariableError),
+        ("const a = 2; a = 3;", ConstantRedefinitionError),
+    )
+)
+def test_assign_variable_error(text, expected_error):
+    test_text_raises_error(text, expected_error)
 
 
-def test_assign_variable():
-    pass
+@pytest.mark.parametrize(
+    "text, expected_result", (
+        ((
+            "fn add(a, b) {"
+            "  return a + b;"
+            "}"
+            "add(1, 2);"
+        ), 3),
+        ((
+            "fn nested(const a, b) {"
+            "  fn inner(const c, d) {"
+            "    return a + b + c + d;"
+            "  }"
+            "  return inner;"
+            "}"
+            "nested(1, 2)(3, 4);"
+        ), 10),
+    )
+)
+def test_function(text, expected_result):
+    program = create_program(text)
+    interpreter = Interpreter()
+    program.statements[0].accept(interpreter)
+    result = program.statements[1].accept(interpreter)
+    assert result == expected_result
 
 
-def test_assign_variable_error():
-    pass
-
-
-def test_function_call():
-    pass
-
-
-def test_function_call_error():
-    pass
-
-
-def test_function_declaration():
-    pass
-
-
-def test_function_declaration_error():
-    pass
+@pytest.mark.parametrize(
+    "text, expected_error", (
+        ((
+            "fn immutable(const arg) {"
+            "  arg = 2;"
+            "}"
+            "immutable(1);"
+        ), ConstantRedefinitionError),
+        ((
+            "fn add(a, b) {"
+            "  return a + b;"
+            "}"
+            "add(1);"
+        ), InvalidArgumentNumberError),
+        ("var undef_function = 1; undef_function();", UndefinedFunctionError),
+    )
+)
+def test_function_error(text, expected_error):
+    test_text_raises_error(text, expected_error)
