@@ -79,7 +79,13 @@ class Interpreter(Visitor):
                 | TokenType.EQUAL_EQUAL
                 | TokenType.BANG_EQUAL
             ):
-                return self._evaluate_binary_comparison(expr)
+                left = self.evaluate(expr.left)
+                right = self.evaluate(expr.right)
+                return self._evaluate_binary_comparison(
+                    left,
+                    right,
+                    expr.operator
+                )
 
     def _evaluate_binary_minus(self, left_expr: Expr, right_expr: Expr):
         left = self.evaluate(left_expr)
@@ -87,7 +93,7 @@ class Interpreter(Visitor):
         new_left = self.try_cast_to_number(left)
         new_right = self.try_cast_to_number(right)
         if new_left is not None and new_right is not None:
-            return new_left - new_right
+            return self._int_or_float(new_left - new_right)
         raise NumberConversionError(
             left if new_left is None else right,
             left_expr.position if new_left is None else right_expr.position
@@ -97,7 +103,10 @@ class Interpreter(Visitor):
         left = self.evaluate(left_expr)
         right = self.evaluate(right_expr)
         left, right = self._cast_binary_operands_to_common_type(left, right)
-        return left + right
+        result = left + right
+        if isinstance(result, float):
+            return self._int_or_float(result)
+        return result
 
     def _cast_binary_operands_to_common_type(self, left, right):
         if (new_left := self.try_cast_to_number(left)) is not None:
@@ -116,7 +125,7 @@ class Interpreter(Visitor):
         new_left = self.try_cast_to_number(left)
         new_right = self.try_cast_to_number(right)
         if new_left is not None and new_right is not None:
-            return new_left * new_right
+            return self._int_or_float(new_left * new_right)
         raise NumberConversionError(
             left if new_left is None else right,
             left_expr.position if new_left is None else right_expr.position
@@ -130,16 +139,13 @@ class Interpreter(Visitor):
         if new_left is not None and new_right is not None:
             if new_right == 0:
                 raise DivisionByZeroError(right_expr.position)
-            return new_left / new_right
+            return self._int_or_float(new_left / new_right)
         raise NumberConversionError(
             left if new_left is None else right,
             left_expr.position if new_left is None else right_expr.position
         )
 
-    def _evaluate_binary_comparison(self, expr: BinaryExpr):
-        left = self.evaluate(expr.left)
-        right = self.evaluate(expr.right)
-        operator_type = expr.operator
+    def _evaluate_binary_comparison(self, left, right, operator_type):
         left, right = self._cast_binary_operands_to_common_type(
             left,
             right
@@ -247,7 +253,7 @@ class Interpreter(Visitor):
         value = None
         if stmt.expression is not None:
             value = self.evaluate(stmt.expression)
-        raise Return(value)
+        raise Return(value, stmt.position)
 
     def visit_match_stmt(self, stmt: MatchStmt):
         arguments = [self.evaluate(arg) for arg in stmt.arguments]
@@ -316,6 +322,8 @@ class Interpreter(Visitor):
                 return isinstance(value, (int, float))
             if stmt.type == TokenType.BOOL_TYPE:
                 return isinstance(value, bool)
+            if stmt.type == TokenType.FUNCTION_TYPE:
+                return isinstance(value, Callable)
             if stmt.type == TokenType.NIL_TYPE:
                 return value is None
         return _evaluate_type_pattern
@@ -364,3 +372,9 @@ class Interpreter(Visitor):
         if value is False:
             return "false"
         return str(value)
+
+    def _int_or_float(self, number: float | int) -> float | int:
+        if number % 1 == 0:
+            return int(number)
+        else:
+            return number
