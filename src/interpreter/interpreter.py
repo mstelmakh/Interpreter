@@ -20,12 +20,8 @@ from parser.models import (
     WhileStmt,
     ReturnStmt,
     MatchStmt,
-    CaseStmt,
-    Guard,
-    PatternExpr,
     ComparePatternExpr,
-    TypePatternExpr,
-    Parameter
+    TypePatternExpr
 )
 
 from interpreter.models import Environment, Callable, UserDefinedFunction
@@ -296,15 +292,6 @@ class Interpreter(Visitor):
             return True
         return self.evaluate(pattern)(value)
 
-    def visit_case_stmt(self, stmt: CaseStmt):
-        pass
-
-    def visit_guard(self, stmt: Guard):
-        pass
-
-    def visit_pattern_expr(self, stmt: PatternExpr):
-        pass
-
     def visit_compare_pattern_expr(self, stmt: ComparePatternExpr):
         def _evaluate_compare_pattern(value: Literal) -> bool:
             return self._evaluate_binary_comparison(
@@ -327,9 +314,6 @@ class Interpreter(Visitor):
             if stmt.type == TokenType.NIL_TYPE:
                 return value is None
         return _evaluate_type_pattern
-
-    def visit_parameter(self, parameter: Parameter):
-        pass
 
     def is_truthy(self, value: Literal) -> bool:
         if not value:

@@ -283,25 +283,9 @@ class Visitor(ABC):
         pass
 
     @abstractmethod
-    def visit_case_stmt(stmt: CaseStmt):
-        pass
-
-    @abstractmethod
-    def visit_guard(stmt: Guard):
-        pass
-
-    @abstractmethod
-    def visit_pattern_expr(stmt: PatternExpr):
-        pass
-
-    @abstractmethod
     def visit_compare_pattern_expr(stmt: ComparePatternExpr):
         pass
 
     @abstractmethod
     def visit_type_pattern_expr(stmt: TypePatternExpr):
-        pass
-
-    @abstractmethod
-    def visit_parameter(parameter: Parameter):
         pass
