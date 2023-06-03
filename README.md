@@ -218,7 +218,7 @@ true + false = false + true = 1
 
 // On Functions
 // functions are converted to string containing its name
-"function " + someFunction  = "function: someFunction"
+"function: " + someFunction  = "function: someFunction"
 1 + function123             = "1function123"
 
 // Operator "-" is used only for numerical substraction
@@ -485,7 +485,6 @@ match (number) {
     ("string"): {}
     (nil): {}
     (someFunc()): {}
-    ((someFunc() and 1+1>5 or true) or (==false as result)): {}
 }
 ```
 
@@ -543,38 +542,34 @@ The grammar is in [this](./grammar.ebnf) file.
 
 ## Error handling
 
-If the error was found while scanning the source - the lexer reports an error, but it doesn't stop, it keeps scanning.
-
-If the error was found while parsing - the parser reports an error and uses a technique called *error recovery* to try and continue parsing the code.
-
 The error message structure looks like this:
 ```
 <Error Type>: <Error message>
 
-    <line number> | <place where error occured>
+    <line number>:<line column> | <place where error occured>
 ```
 
 For example:
 ```
-ZeroDivisionError: division by zero
+DivisionByZeroError: division by zero
 
-    15 | var number = 15 / 0;
+    15:17 | var number = 15 / 0;
 ```
 
 ## How to run
 
 To run the interpreter use following syntax:
 ```sh
-python3 interpreter.py [filepath]
+python3 main.py [filepath]
 ```
 
-Where `interpreter.py` is a path to the interpreter and `filepath` is a path to the file with the source code.
+Where `main.py` is a path to the main program and `filepath` is a path to the file with the source code.
 
 If `filepath` is not given, the interpreter will be run interactively.
 
 ## Implementation
 
-As it's a *tree-walk interpreter*, it has three main parts: **Lexer**, **Parser**, **Interpreter**. For convenience, an interpreter is divided into two more modules: **error handling** and **input reader**. This will make interpreter more flexible and will allow to change the interpreter behavior simply by replacing one of the modules.
+As it's a *tree-walk interpreter*, it has three main parts: **Lexer**, **Parser**, **Interpreter**. For convenience, there are two more modules: **error handling** and **input reader**. This will make interpreter more flexible and will allow to change the interpreter behavior simply by replacing one of the modules.
 
 #### Error handling
 
@@ -590,7 +585,7 @@ class ErrorHandler:
     def handle_parser_error(self, exception: ParserError):
         ...
 
-    def handle_interpreter_error(self, exception: InterpreterError):
+    def handle_runtime_error(self, exception: RuntimeError):
         ...
 ```
 
@@ -600,6 +595,7 @@ class Position:
     line: int
     column: int
     offset: int
+    filename: str | None = None
 
 class Exception:
     position: Position
@@ -614,8 +610,9 @@ This module is responsible for reading an input and provide lexer with the strea
 
 An input reader should implement this interface:
 ```python
-class InputReader:
+class Stream:
     position: Position
+    current_char: str
 
     def advance(self) -> str:
         ...
@@ -625,13 +622,12 @@ class InputReader:
 
 #### Lexer
 
-A **lexer** (or **scanner**) takes a stream of characters and groups it into **tokens**. Because there is an additional layer for reading source, lexer doesn't interact with the source, it uses an input reader it got during initialization to move in the code.
+A **lexer** takes a stream of characters and returns a **token** every time `next_token()` method get called. Because there is an additional layer for reading source, lexer doesn't interact with the source, it uses an input reader it got during initialization to move in the code.
 
 The interface of the scanner is the following:
 ```python
-class Scanner:
-    input_reader: InputReader
-    error_handler: ErrorHandler
+class Lexer:
+    stream: Stream
 
     def next_token(self) -> Token:
         ...
@@ -649,24 +645,118 @@ If it represents a **literal** (identifier, string or number), than it has a val
 
 #### Parser
 
-A parser takes the flat sequence of **tokens** and builds a **tree** structure using **recursive descent** method. It also defines a type an a precedence of the node based on the grammar rules.
+A parser takes the flat sequence of **tokens** and builds a **tree** structure using **recursive descent** method. It also defines a type and a precedence of the node based on the grammar rules.
 
 ```python
 class Parser:
-    scanner: Scanner
+    lexer: Lexer
 
-    def parse(self) -> Statement:
+    def parse(self) -> Program:
         ...
 ```
 
-Where `Statement` is a base class for language's statements defined in the [grammar](./grammar.ebnf) file. A `Statement` might also contain an `Expression` object.
+Where `Program` is a class that represents a program built from the list of statements. Each statement is an object that represents a statement from the source code. Each statement has a position and an `accept` method, that will be used by the interpreter to execute the statement.
 
-To handle errors, parser uses `error_handler` object that is present in the `scanner` instance.
+```python
+class Program:
+    statements: list[Stmt]
+
+    def accept(self, visitor: Visitor):
+        return visitor.visit_program(self)
+
+
+class Stmt:
+    position: Position
+
+    def accept(self, visitor: Visitor):
+        ...
+```
+
+The visitor must implement the following interface:
+```python
+class Visitor(ABC):
+    def visit_program(program: Program):
+        ...
+
+    def visit_assignment_expr(expr: AssignmentExpr):
+        ...
+
+    def visit_binary(expr: BinaryExpr):
+        ...
+
+    def visit_literal(expr: LiteralExpr):
+        ...
+
+    def visit_unary(expr: UnaryExpr):
+        ...
+
+    def visit_logical(expr: LogicalExpr):
+        ...
+
+    def visit_grouping(expr: GroupingExpr):
+        ...
+
+    def visit_identifier(expr: IdentifierExpr):
+        ...
+
+    def visit_call(expr: CallExpr):
+        ...
+
+    def visit_block_stmt(stmt: BlockStmt):
+        ...
+
+    def visit_function_stmt(stmt: FunctionStmt):
+        ...
+
+    def visit_variable_stmt(stmt: VariableStmt):
+        ...
+
+    def visit_if_stmt(stmt: IfStmt):
+        ...
+
+    def visit_while_stmt(stmt: WhileStmt):
+        ...
+
+    def visit_return_stmt(stmt: ReturnStmt):
+        ...
+
+    def visit_match_stmt(stmt: MatchStmt):
+        ...
+
+    def visit_compare_pattern_expr(stmt: ComparePatternExpr):
+        ...
+
+    def visit_type_pattern_expr(stmt: TypePatternExpr):
+        ...
+```
 
 #### Interpreter
 
-Interpreter's job is to apply static analysis to the **AST** and execute the code. To run the program, the interpreter traverses the syntax tree one branch and leaf at a time, evaluating each node as it goes.
+An interpreter takes a **tree** structure and executes it. It implements a **visitor** pattern to traverse the tree and execute each node. The state of the interpreter is stored in the **environment** object. It contains all the variables and functions that are defined in the program.
 
-## Testing
+```python
+class Environment:
+    enclosing: Environment | None
+    _values: dict[str, dict[any, bool]]
 
-There will be a set of unit tests for each module and integration tests to verify how modules work together. Acceptance testing will also be applied for testing the whole interpreter against prepared examples.
+    def define(self, name: str, value: Any, is_constant: bool = False):
+        ...
+
+    def define_function(self, function: Callable):
+        ...
+
+    def assign(self, name: str, value: Any):
+        ...
+
+    def get(self, name: str) -> Any:
+        ...
+```
+
+#### Testing
+
+There are unit tests for each module and integration tests to verify how modules work together. `pytest` library is used for tests parametrization.
+
+To run tests use following command:
+```sh
+pytest src/
+```
