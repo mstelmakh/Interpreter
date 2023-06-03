@@ -44,7 +44,6 @@ from interpreter.exceptions import (
 Literal = int | float | str | bool | None
 
 
-# TODO: Position in exceptions
 class Interpreter(Visitor):
     def __init__(self):
         self.environment = Environment()
@@ -63,17 +62,15 @@ class Interpreter(Visitor):
             raise e.__class__(expr.name, position=expr.position)
 
     def visit_binary(self, expr: BinaryExpr):
-        left = self.evaluate(expr.left)
-        right = self.evaluate(expr.right)
         match expr.operator:
             case TokenType.MINUS:
-                return self._evaluate_binary_minus(left, right)
+                return self._evaluate_binary_minus(expr.left, expr.right)
             case TokenType.PLUS:
-                return self._evaluate_binary_plus(left, right)
+                return self._evaluate_binary_plus(expr.left, expr.right)
             case TokenType.STAR:
-                return self._evaluate_binary_multiply(left, right)
+                return self._evaluate_binary_multiply(expr.left, expr.right)
             case TokenType.SLASH:
-                return self._evaluate_binary_divide(left, right)
+                return self._evaluate_binary_divide(expr.left, expr.right)
             case (
                 TokenType.GREATER_EQUAL
                 | TokenType.GREATER
@@ -82,24 +79,27 @@ class Interpreter(Visitor):
                 | TokenType.EQUAL_EQUAL
                 | TokenType.BANG_EQUAL
             ):
-                return self._evaluate_binary_comparison(
-                    left,
-                    right,
-                    expr.operator
-                )
+                return self._evaluate_binary_comparison(expr)
 
-    def _evaluate_binary_minus(self, left, right):
+    def _evaluate_binary_minus(self, left_expr: Expr, right_expr: Expr):
+        left = self.evaluate(left_expr)
+        right = self.evaluate(right_expr)
         new_left = self.try_cast_to_number(left)
         new_right = self.try_cast_to_number(right)
         if new_left is not None and new_right is not None:
             return new_left - new_right
-        raise NumberConversionError(left if new_left is None else right, None)
+        raise NumberConversionError(
+            left if new_left is None else right,
+            left_expr.position if new_left is None else right_expr.position
+        )
 
-    def _evaluate_binary_plus(self, left, right):
-        left, right = self._cast_plus_operands_to_common_type(left, right)
+    def _evaluate_binary_plus(self, left_expr: Expr, right_expr: Expr):
+        left = self.evaluate(left_expr)
+        right = self.evaluate(right_expr)
+        left, right = self._cast_binary_operands_to_common_type(left, right)
         return left + right
 
-    def _cast_plus_operands_to_common_type(self, left, right):
+    def _cast_binary_operands_to_common_type(self, left, right):
         if (new_left := self.try_cast_to_number(left)) is not None:
             new_right = self.try_cast_to_number(right)
             if new_right is not None:
@@ -110,29 +110,37 @@ class Interpreter(Visitor):
                 return new_left, new_right
         return self.cast_to_str(left), self.cast_to_str(right)
 
-    def _evaluate_binary_multiply(self, left, right):
+    def _evaluate_binary_multiply(self, left_expr: Expr, right_expr: Expr):
+        left = self.evaluate(left_expr)
+        right = self.evaluate(right_expr)
         new_left = self.try_cast_to_number(left)
         new_right = self.try_cast_to_number(right)
         if new_left is not None and new_right is not None:
             return new_left * new_right
-        raise NumberConversionError(left if new_left is None else right, None)
+        raise NumberConversionError(
+            left if new_left is None else right,
+            left_expr.position if new_left is None else right_expr.position
+        )
 
-    def _evaluate_binary_divide(self, left, right):
+    def _evaluate_binary_divide(self, left_expr: Expr, right_expr: Expr):
+        left = self.evaluate(left_expr)
+        right = self.evaluate(right_expr)
         new_left = self.try_cast_to_number(left)
         new_right = self.try_cast_to_number(right)
         if new_left is not None and new_right is not None:
             if new_right == 0:
-                raise DivisionByZeroError(None)
+                raise DivisionByZeroError(right_expr.position)
             return new_left / new_right
-        raise NumberConversionError(left if new_left is None else right, None)
+        raise NumberConversionError(
+            left if new_left is None else right,
+            left_expr.position if new_left is None else right_expr.position
+        )
 
-    def _evaluate_binary_comparison(
-            self,
-            left: Literal | UserDefinedFunction,
-            right: Literal | UserDefinedFunction,
-            operator_type: TokenType
-    ):
-        left, right = self._cast_comparison_operands_to_common_type(
+    def _evaluate_binary_comparison(self, expr: BinaryExpr):
+        left = self.evaluate(expr.left)
+        right = self.evaluate(expr.right)
+        operator_type = expr.operator
+        left, right = self._cast_binary_operands_to_common_type(
             left,
             right
         )
@@ -148,37 +156,6 @@ class Interpreter(Visitor):
             return left == right
         if operator_type == TokenType.BANG_EQUAL:
             return left != right
-
-    def _cast_comparison_operands_to_common_type(self, left, right):
-        # TODO: function and string comparison
-        # TODO: function comparison
-        if type(left) != type(right):
-            if isinstance(left, (str, UserDefinedFunction)):
-                new_left = self.try_cast_to_number(left)
-                right = self.try_cast_to_number(right)
-                if new_left is not None:
-                    # "2" < 5
-                    left = new_left
-                else:
-                    # "hello" < 5
-                    # print < 5
-                    left = str(left)
-                    right = str(right)
-            elif isinstance(right, (str, UserDefinedFunction)):
-                left = self.try_cast_to_number(left)
-                new_right = self.try_cast_to_number(right)
-                if new_right is not None:
-                    # 5 < "2"
-                    right = new_right
-                else:
-                    # 5 < "hello"
-                    # 5 < print
-                    left = str(left)
-                    right = str(right)
-            else:
-                left = self.try_cast_to_number(left)
-                right = self.try_cast_to_number(right)
-        return left, right
 
     def visit_literal(self, expr: LiteralExpr):
         return expr.value
