@@ -1,0 +1,21 @@
+print(5 == "5");                           // true
+print(5 != 10);                            // true
+print(5 < 10);                             // true
+print(10 > "5");                           // true
+print(5 <= 5);                             // true
+print(10 >= 10);                           // true
+print((5 == 5) and (10 == 10));            // true
+print((5 == 5) or (10 == 5));              // true
+print(not (5 == 10));                      // true
+print(1 == "1" == true);                   // true
+print(1 < 1 == true);                      // false
+print(true == 2 > 1);                      // true
+print((2 >= 1) and (1 >= 0));              // true
+print(5 <= "5");                           // true
+print(7 > "-1");                           // true
+print(1000 < "1000a");                     // true
+print(10001 < "1000a");                    // true
+print(12345000 < "a");                     // true
+print("hello" < "hello!");                 // true
+print("hello" > "Hello");                  // true
+print("Hello" < print);                    // true

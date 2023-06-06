@@ -16,12 +16,8 @@ from parser.models import (
     WhileStmt,
     ReturnStmt,
     MatchStmt,
-    CaseStmt,
-    Guard,
-    PatternExpr,
     ComparePatternExpr,
     TypePatternExpr,
-    Parameter
 )
 
 
@@ -71,7 +67,7 @@ class AstPrinter(Visitor):
 
     @print_type_and_indent
     def visit_call(self, expr: CallExpr):
-        expr.calee.accept(self)
+        expr.callee.accept(self)
         self._print("Arguments")
         self.spaces += 2
         for argument in expr.arguments:
@@ -86,7 +82,7 @@ class AstPrinter(Visitor):
     @print_type_and_indent
     def visit_function_stmt(self, stmt: FunctionStmt):
         for param in stmt.params:
-            param.accept(self)
+            self._print(str(param))
         stmt.block.accept(self)
 
     @print_type_and_indent
@@ -117,26 +113,14 @@ class AstPrinter(Visitor):
     def visit_match_stmt(self, stmt: MatchStmt):
         self._print(str(stmt.arguments))
         for case_block in stmt.case_blocks:
-            case_block.accept(self)
-
-    @print_type_and_indent
-    def visit_case_stmt(self, stmt: CaseStmt):
-        for pattern in stmt.patterns:
-            pattern.accept(self)
-        if stmt.guard:
-            stmt.guard.accept(self)
-        stmt.body.accept(self)
-
-    @print_type_and_indent
-    def visit_guard(self, stmt: Guard):
-        stmt.condition.accept(self)
-
-    @print_type_and_indent
-    def visit_pattern_expr(self, stmt: PatternExpr):
-        if stmt.pattern:
-            stmt.pattern.accept(self)
-        if stmt.name:
-            self._print(str(stmt.name))
+            for pattern in case_block.patterns:
+                if pattern.pattern:
+                    pattern.pattern.accept(self)
+                if pattern.name:
+                    self._print(str(pattern.name))
+            if case_block.guard:
+                case_block.guard.condition.accept(self)
+            case_block.body.accept(self)
 
     @print_type_and_indent
     def visit_compare_pattern_expr(self, stmt: ComparePatternExpr):
@@ -151,9 +135,6 @@ class AstPrinter(Visitor):
 
     def visit_identifier(self, expr: IdentifierExpr):
         self._print(str(expr))
-
-    def visit_parameter(self, parameter: Parameter):
-        self._print(str(parameter))
 
     def _print(self, string: str):
         print(" "*self.spaces + string)

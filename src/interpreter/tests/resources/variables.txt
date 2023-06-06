@@ -1,0 +1,17 @@
+const a = "string";
+var b;
+
+print(a);                           // "string"
+print(b);                           // nil
+
+b = 5;
+print(b);                           // 5
+
+b = true + b;
+print(b);                           // 6
+
+print(b=b-"5");                     // 1
+print(b);                           // 1
+
+b = a;
+print(b);                           // "string"

@@ -1,0 +1,56 @@
+fn determine_type(variable) {
+    match (variable) {
+        (Bool): print("Boolean");
+        (Num): print("Number");
+        (Str): print("String");
+        (Func): print("Function");
+        (Nil): print("Nil");
+    }
+}
+
+determine_type(-15);                                // Number
+determine_type(false);                              // Boolean
+determine_type(true);                               // Boolean
+determine_type("123");                              // String
+determine_type(print);                              // Function
+determine_type(nil);                                // Nil
+
+
+fn compare_pattern(variable) {
+    match (variable) {
+        (0): print(0);
+        (1): print(1);
+        (<1 and >-100): print("-100<" + variable + "<1");
+        (!=100): print(variable + "!=100");
+        (_): print(100);
+    }
+}
+
+compare_pattern(0);                                 // 0
+compare_pattern(1);                                 // 1
+compare_pattern(-53);                               // -100<-53<1
+compare_pattern(66);                                // 66!=100
+compare_pattern(100);                               // 100
+
+
+fn determine_quarter(x, y){
+    match (x, y) {
+        (Num and >0, Num and >0 ): print("first");
+        (Num and <0, Num and >0): print("second");
+        (Num and <0, Num and <0): print("third");
+        (Num and >0, Num and <0): print("fourth");
+        (Num and 0, Num): print("on Y");
+        (Num, Num): print("on X");
+        (_ as x, _ as y): print("Invalid coords: " + x + ", " + y);
+    }
+}
+
+determine_quarter(1, 1);                            // "first"
+determine_quarter(-0.5, 0.1);                       // "second"
+determine_quarter(-0.5, -50);                       // "third"
+determine_quarter(000.25, -000.1000);               // "fourth"
+
+determine_quarter(0, 12.34);                        // "on Y"
+determine_quarter(-12.34, 0);                       // "on X"
+
+determine_quarter("x", "y");                        // "Invalid coords: x, y"

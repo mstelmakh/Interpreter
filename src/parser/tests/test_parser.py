@@ -122,7 +122,7 @@ def test_grouping_error(text: str, error: type[ParserError]):
     test_text_raises_error(text, error)
 
 
-@pytest.mark.parametrize('text, calee, arguments', (
+@pytest.mark.parametrize('text, callee, arguments', (
     ('do_nothing()', IdentifierExpr("do_nothing"), []),
     ('print("hello")', IdentifierExpr("print"), [LiteralExpr("hello")]),
     (
@@ -138,14 +138,14 @@ def test_grouping_error(text: str, error: type[ParserError]):
 ))
 def test_call_success(
     text: str,
-    calee: Expr,
+    callee: Expr,
     arguments: list[Expr]
 ):
     parser = create_parser(text + ";")
     program = parser.parse()
     call = program.statements[0]
     assert isinstance(call, CallExpr)
-    assert call.calee == calee
+    assert call.callee == callee
     assert call.arguments == arguments
 
 

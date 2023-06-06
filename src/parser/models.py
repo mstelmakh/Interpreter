@@ -1,8 +1,9 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
 from lexer.tokens import TokenType
+from lexer.streams import Position
 
 
 @dataclass
@@ -13,10 +14,18 @@ class Program:
         return visitor.visit_program(self)
 
 
-class Expr(ABC):
+@dataclass(kw_only=True)
+class Stmt(ABC):
+    position: Position | None = field(default=None, compare=False, repr=False)
+
     @abstractmethod
     def accept(self, visitor: Visitor) -> None:
         pass
+
+
+@dataclass(kw_only=True)
+class Expr(Stmt):
+    pass
 
 
 @dataclass
@@ -83,17 +92,11 @@ class IdentifierExpr(Expr):
 
 @dataclass
 class CallExpr(Expr):
-    calee: Expr
+    callee: Expr
     arguments: list[Expr]
 
     def accept(self, visitor: Visitor) -> None:
         return visitor.visit_call(self)
-
-
-class Stmt(ABC):
-    @abstractmethod
-    def accept(self, visitor: Visitor) -> None:
-        pass
 
 
 @dataclass
@@ -280,25 +283,9 @@ class Visitor(ABC):
         pass
 
     @abstractmethod
-    def visit_case_stmt(stmt: CaseStmt):
-        pass
-
-    @abstractmethod
-    def visit_guard(stmt: Guard):
-        pass
-
-    @abstractmethod
-    def visit_pattern_expr(stmt: PatternExpr):
-        pass
-
-    @abstractmethod
     def visit_compare_pattern_expr(stmt: ComparePatternExpr):
         pass
 
     @abstractmethod
     def visit_type_pattern_expr(stmt: TypePatternExpr):
-        pass
-
-    @abstractmethod
-    def visit_parameter(parameter: Parameter):
         pass
